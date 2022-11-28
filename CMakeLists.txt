@@ -8,13 +8,14 @@ project(DPG_AKNN
 set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB_RECURSE APP_SRC
-"src/main.cpp"
+"src/*.cpp"
+"src/*.h"
 )
 
 set(APP_INCLUDE 
 "src"
 )
 
-add_executable(app ${APP_SRC})
+add_executable(aknn ${APP_SRC})
 
-target_include_directories(app PUBLIC ${APP_INCLUDE})
+target_include_directories(aknn PUBLIC ${APP_INCLUDE})
