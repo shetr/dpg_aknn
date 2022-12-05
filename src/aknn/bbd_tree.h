@@ -90,7 +90,7 @@ public:
 };
 
 template<typename FloatT, int Dim>
-using NodeVar = std::variant<SplitNode*, ShrinkNode<FloatT, Dim>*, LeafNode<FloatT, Dim>*>
+using NodeVar = std::variant<SplitNode*, ShrinkNode<FloatT, Dim>*, LeafNode<FloatT, Dim>*>;
 
 struct KDTree
 {

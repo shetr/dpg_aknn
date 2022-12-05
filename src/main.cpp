@@ -52,21 +52,23 @@ void CreateShrinkNode()
 
 }
 
-template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-void FindAproximateNearestNeighbor(const BBDTreeType& tree, const Vec<FloatT, Dim>& point)
-{
-
-}
-
-template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-void FindKAproximateNearestNeighbors(const BBDTreeType& tree, const Vec<FloatT, Dim>& point)
-{
-    
-}
-
 int main()
 {
     std::cout << "hi" << std::endl;
+
+    std::vector<Vec<float, 2>> points;
+    points.push_back(Vec<float, 2>({0, 0}));
+    points.push_back(Vec<float, 2>({1, 0}));
+    points.push_back(Vec<float, 2>({0, 1}));
+    points.push_back(Vec<float, 2>({1, 1}));
+
+    Vec<float, 2> query({0.f, 0.75f});
+    Vec<float, 2> nn = NaiveFindNN(points, query);
+
+    std::cout << nn[0] << ", " << nn[1] << std::endl;
+
+    
+    //std::cout << (std::numeric_limits<float>::infinity() / 2) << std::endl;
 
     return 0;
 }
