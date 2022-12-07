@@ -12,7 +12,7 @@ template<typename FloatT, int Dim>
 struct DistNode
 {
     FloatT dist;
-    Node* node;
+    int64_t nodeIdx;
     AABB box;
 };
 
@@ -53,12 +53,12 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
     Vec<FloatT, Dim> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
     std::priority_queue<DistNode> nodeQueue;
-    DistNode rootNode{0, tree.GetRoot(), tree.GetBBox()};
+    DistNode rootNode{0, 0, tree.GetBBox()};
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
     {
         DistNode distNode = nodeQueue.top();
-        Node* node = distNode.node;
+        Node* node = tree.GetNode(distNode.nodeIdx);
         nodeQueue.pop();
         
         if (node->GetType() == NodeType::LEAF)
@@ -77,6 +77,7 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
         }
         else
         {
+            InnerNode* innerNode = (InnerNode*)node;
             AABB leftBox = distNode.box;
             AABB rightBox = distNode.box;
             if (node->GetType() == NodeType::SPLIT)
@@ -94,8 +95,9 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
             }
             FloatT distLeft = leftBox.SquaredDistance(queryPoint);
             FloatT distRight = rightBox.SquaredDistance(queryPoint);
-            nodeQueue.push({distLeft, , leftBox});
-            nodeQueue.push({distRight, , rightBox});
+            if (innerNode->HasLeftChild())
+                nodeQueue.push({distLeft, , leftBox});
+            nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
         }
     }
     return ann;
