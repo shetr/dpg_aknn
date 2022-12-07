@@ -13,7 +13,7 @@ struct DistNode
 {
     FloatT dist;
     int64_t nodeIdx;
-    AABB box;
+    Box box;
 };
 
 template<typename FloatT, int Dim>
@@ -78,8 +78,8 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
         else
         {
             InnerNode* innerNode = (InnerNode*)node;
-            AABB leftBox = distNode.box;
-            AABB rightBox = distNode.box;
+            Box leftBox = distNode.box;
+            Box rightBox = distNode.box;
             if (node->GetType() == NodeType::SPLIT)
             {
                 SplitNode* splitNode = (SplitNode*)node;
@@ -96,7 +96,7 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
             FloatT distLeft = leftBox.SquaredDistance(queryPoint);
             FloatT distRight = rightBox.SquaredDistance(queryPoint);
             if (innerNode->HasLeftChild())
-                nodeQueue.push({distLeft, , leftBox});
+                nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset(node->GetType()), leftBox});
             nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
         }
     }

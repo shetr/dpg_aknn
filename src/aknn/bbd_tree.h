@@ -75,7 +75,7 @@ class ShrinkNode : public InnerNode
 {
 private:
     //uint64_t rightChild_leftChild_nodeType;
-    AABB<FloatT, Dim> shrinkBox;
+    Box<FloatT, Dim> shrinkBox;
 public:
 };
 
@@ -123,7 +123,7 @@ struct BBDTree
 {
     std::vector<Node> nodes;
     std::vector<Vec<FloatT, Dim>> points;
-    AABB<FloatT, Dim> pointsBox;
+    Box<FloatT, Dim> pointsBox;
 
     Node* GetRoot();
 

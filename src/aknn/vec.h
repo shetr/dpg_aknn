@@ -46,7 +46,7 @@ FloatT Square(FloatT v) {
 }
 
 template<typename FloatT, int Dim>
-struct AABB
+struct Box
 {
     Vec<FloatT, Dim> min;
     Vec<FloatT, Dim> max;
