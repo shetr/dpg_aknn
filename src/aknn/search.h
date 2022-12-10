@@ -124,7 +124,8 @@ PointObj<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, con
             FloatT distRight = rightBox.SquaredDistance(queryPoint);
             if (innerNode->HasLeftChild())
                 nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset(node->GetType()), leftBox});
-            nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
+            if (innerNode->GetRightChildIndex() != 0)
+                nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
         }
     }
     return ann;
