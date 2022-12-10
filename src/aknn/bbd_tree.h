@@ -46,6 +46,7 @@ class Node
 protected:
     uint64_t _customData_nodeType;
 public:
+    Node() : _customData_nodeType(0) {}
     Node(NodeType nodeType) : _customData_nodeType(static_cast<uint64_t>(nodeType)) {}
 
     NodeType GetType() const { return static_cast<NodeType>(_customData_nodeType & NODE_TYPE_MASK); };
@@ -109,19 +110,27 @@ public:
 class LeafNode : public Node
 {
 private:
-    uint64_t _pointsEnd = 0;
+    uint64_t _objsEnd = 0;
 public:
-    LeafNode() : Node(NodeType::LEAF) { }
+    LeafNode(uint64_t pointsBeg, uint64_t pointsEnd) : Node(NodeType::LEAF) {
+        SetPointsBegIndex(pointsBeg);
+        SetPointsEndIndex(pointsEnd);
+    }
 
     int64_t GetPointsBegIndex() const { return (int64_t)(_customData_nodeType >> NODE_TYPE_BITS); }
+    int64_t GetPointsEndIndex() const { return _objsEnd; }
+private:
     void SetPointsBegIndex(uint64_t i) { _customData_nodeType = (_customData_nodeType & NODE_TYPE_MASK) | (i << NODE_TYPE_BITS); }
-    int64_t GetPointsEndIndex() const { return _pointsEnd; }
-    void SetPointsEndIndex(uint64_t i) { _pointsEnd = i; }
+    void SetPointsEndIndex(uint64_t i) { _objsEnd = i; }
 };
 
 template<typename FloatT, int Dim>
 int GetNodeOffset(NodeType nodeType)
 {
+    static_assert(sizeof(SplitNode) == sizeof(Node));
+    static_assert(sizeof(InnerNode) == sizeof(Node));
+    static_assert(sizeof(ShrinkNode<FloatT, Dim>) % sizeof(Node) == 0);
+    static_assert(sizeof(LeafNode) == 2*sizeof(Node));
     switch (nodeType)
     {
     case NodeType::SPLIT:
@@ -137,18 +146,18 @@ int GetNodeOffset(NodeType nodeType)
 }
 
 template<typename FloatT, int Dim, typename FuncT>
-Vec<FloatT, Dim>* SplitPoints(Vec<FloatT, Dim>* beg, Vec<FloatT, Dim>* end, Vec<FloatT, Dim>* auxBeg, FuncT isLeft)
+PointObj<FloatT, Dim>* SplitPoints(PointObj<FloatT, Dim>* beg, PointObj<FloatT, Dim>* end, PointObj<FloatT, Dim>* auxBeg, FuncT isLeft)
 {
     int size = end - beg;
     int left = 0;
     int right = size - 1;
-    for (const Vec<FloatT, Dim>* point = beg; point != end; ++point)
+    for (const PointObj<FloatT, Dim>* obj = beg; obj != end; ++obj)
     {
-        bool putLeft = isLeft(*point);
+        bool putLeft = isLeft(obj->point);
         if (putLeft) {
-            auxBeg[left++] = *point;
+            auxBeg[left++] = *obj;
         } else {
-            auxBeg[right--] = *point;
+            auxBeg[right--] = *obj;
         }
     }
     std::copy(auxBeg, auxBeg + size, beg);
@@ -161,21 +170,20 @@ class BBDTree
 public:
     BBDTree() {}
 
-    static BBDTree BuildFairSplitTree(int leafMaxSize, const std::vector<Vec<FloatT, Dim>>& points)
+    static BBDTree BuildFairSplitTree(int leafMaxSize, const std::vector<PointObj<FloatT, Dim>>& objs)
     {
-        BBDTree tree;
-        tree._pointsBox = Box<FloatT, Dim>::GetBoundingBox(points);
-        _leafMaxSize = leafMaxSize;
-        _points = points;
-        std::vector<Vec<FloatT, Dim>> aux = points;
-        tree.BuildFairSplitTreeR(tree._pointsBox, _points.data(), _points.data() + _points.size(), aux.data());
+        BBDTree tree(leafMaxSize, objs);
+        std::vector<PointObj<FloatT, Dim>> aux = objs;
+        tree.BuildFairSplitTreeR(tree._bbox, _objs.data(), _objs.data() + _objs.size(), aux.data());
+        tree.RemoveTrivialNodes();
         return tree;
     }
-    static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<Vec<FloatT, Dim>>& points)
+    static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<Vec<FloatT, Dim>>& objs)
     {
-        BBDTree tree;
-        tree._pointsBox = Box<FloatT, Dim>::GetBoundingBox(points);
-
+        BBDTree tree(leafMaxSize, objs);
+        std::vector<PointObj<FloatT, Dim>> aux = objs;
+        // TODO: BuildMidpointSplitTreeR
+        tree.RemoveTrivialNodes();
         return tree;
     }
 
@@ -187,26 +195,49 @@ public:
 
 private:
     std::vector<Node> _nodes;
-    std::vector<Vec<FloatT, Dim>> _points;
-    Box<FloatT, Dim> _pointsBox;
+    std::vector<PointObj<FloatT, Dim>> _objs;
+    Box<FloatT, Dim> _bbox;
     int _leafMaxSize;
 
-    SplitNode* AddSplitNode(int splitDim);
-    ShrinkNode* AddShrinkNode(const Box<FloatT, Dim>& shrinkBox);
-    LeafNode* AddLeafNode(uint64_t pointsFrom, uint64_t pointsTo);
+    BBDTree(int leafMaxSize, const std::vector<PointObj<FloatT, Dim>>& objs) : _leafMaxSize(leafMaxSize), _objs(objs), _bbox(Box<FloatT, Dim>::GetBoundingBox(objs)) {}
 
-    Node* BuildFairSplitTreeR(const Box<FloatT, Dim>& box, Vec<FloatT, Dim>* pointsBeg, Vec<FloatT, Dim>* pointsEnd, Vec<FloatT, Dim>* auxBeg)
+    SplitNode* AddSplitNode(int splitDim) {
+        static_assert(sizeof(SplitNode) == sizeof(Node));
+        _nodes.push_back(Node());
+        SplitNode* splitNode = (SplitNode*)&_nodes.back();
+        *splitNode = SplitNode(splitDim);
+        return splitNode;
+    }
+    ShrinkNode<FloatT, Dim>* AddShrinkNode(const Box<FloatT, Dim>& shrinkBox) {
+        static_assert(sizeof(ShrinkNode<FloatT, Dim>) % sizeof(Node) == 0);
+        _nodes.push_back(Node());
+        ShrinkNode<FloatT, Dim>* shrinkNode = (ShrinkNode<FloatT, Dim>*)&_nodes.back();
+        for(int i = 1; i < GetNodeOffset(NodeType::SHRINK); ++i) {
+            _nodes.push_back(Node());
+        }
+        *shrinkNode = ShrinkNode<FloatT, Dim>(shrinkBox);
+        return shrinkNode;
+    }
+    LeafNode* AddLeafNode(uint64_t pointsBeg, uint64_t pointsEnd) {
+        static_assert(sizeof(LeafNode) == 2*sizeof(Node));
+        _nodes.push_back(Node());
+        LeafNode* leafNode = (LeafNode*)&_nodes.back();
+        _nodes.push_back(Node());
+        *leafNode = LeafNode(pointsBeg, pointsEnd);
+        return leafNode;
+    }
+
+    Node* BuildFairSplitTreeR(const Box<FloatT, Dim>& box, PointObj<FloatT, Dim>* pointsBeg, PointObj<FloatT, Dim>* pointsEnd, PointObj<FloatT, Dim>* auxBeg)
     {
         int size = pointsEnd - pointsBeg;
         if (size == 0) {
             return nullptr;
-        }
-        else if (size <= _leafMaxSize) {
-            return AddLeafNode(pointsBeg - _points.data(), pointsEnd - _points.data());
+        } else if (size <= _leafMaxSize) {
+            return AddLeafNode(pointsBeg - _objs.data(), pointsEnd - _objs.data());
         } else {
-            BoxSplit<FloatT> split = box.FairSplit();
+            BoxSplit<FloatT, Dim> split = box.FairSplit();
             SplitNode* splitNode = AddSplitNode(split.dim);
-            Vec<FloatT, Dim>* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
+            PointObj<FloatT, Dim>* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
                 return point[split.dim] < split.value;
             });
             // build left subtree
@@ -221,6 +252,11 @@ private:
             }
             return splitNode;
         }
+    }
+
+    void RemoveTrivialNodes()
+    {
+
     }
 };
 

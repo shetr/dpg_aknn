@@ -48,16 +48,24 @@ FloatT Square(FloatT v) {
     return v * v;
 }
 
+// Object represented by a point
+template<typename FloatT, int Dim>
+struct PointObj
+{
+    Vec<FloatT, Dim> point;
+    void* customData = nullptr;
+};
+
 template<typename FloatT, int Dim>
 struct Box;
 
-template<typename FloatT>
+template<typename FloatT, int Dim>
 struct BoxSplit
 {
     int dim;
     FloatT value;
-    Box left;
-    Box right;
+    Box<FloatT, Dim> left;
+    Box<FloatT, Dim> right;
 };
 
 // Axis aligned bounding box
@@ -69,9 +77,9 @@ struct Box
 
     Box() : min(std::numeric_limits<FloatT>::infinity()), max(-std::numeric_limits<FloatT>::infinity()) {}
 
-    static Box GetBoundingBox(const std::vector<Vec<FloatT, Dim>>& points) {
+    static Box GetBoundingBox(const std::vector<PointObj<FloatT, Dim>>& objs) {
         Box bbox;
-        std::for_each(points.begin(), points.end(), [&bbox](const Vec<FloatT, Dim>& point) { bbox.Include(point); });
+        std::for_each(objs.begin(), objs.end(), [&bbox](const PointObj<FloatT, Dim>& obj) { bbox.Include(obj.point); });
         return bbox;
     }
 
@@ -95,7 +103,7 @@ struct Box
         }
     }
 
-    BoxSplit FairSplit() const {
+    BoxSplit<FloatT, Dim> FairSplit() const {
         int splitDim = 0;
         FloatT maxSize = 0;
         for (int d = 0; d < Dim; ++d) {
@@ -112,14 +120,6 @@ struct Box
         right.min[splitDim] = value;
         return {splitDim, value, left, right};
     }
-};
-
-// Base class for objects represented by a point
-template<typename FloatT, int Dim>
-class PointObject
-{
-public:
-    Vec<FloatT, Dim> point;
 };
 
 #endif // AKNN_VEC_H

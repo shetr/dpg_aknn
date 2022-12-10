@@ -13,7 +13,7 @@ struct DistNode
 {
     FloatT dist;
     int64_t nodeIdx;
-    Box box;
+    Box<FloatT, Dim> box;
 };
 
 template<typename FloatT, int Dim>
@@ -25,32 +25,59 @@ struct DistNodeCompare
 };
 
 template<typename FloatT, int Dim>
-Vec<FloatT, Dim> NaiveFindNN(const std::vector<Vec<FloatT, Dim>>& points, const Vec<FloatT, Dim>& queryPoint)
+PointObj<FloatT, Dim> LinearFindNN(const std::vector<PointObj<FloatT, Dim>>& objs, const Vec<FloatT, Dim>& queryPoint)
 {
-    Vec<FloatT, Dim> res = points[0];
-    FloatT minDist = queryPoint.DistSquared(res);
-    for (int i = 1; i < (int)points.size(); ++i) {
-        FloatT dist = queryPoint.DistSquared(points[i]);
+    PointObj<FloatT, Dim> res = objs[0];
+    FloatT minDist = queryPoint.DistSquared(res.point);
+    for (int i = 1; i < (int)objs.size(); ++i) {
+        FloatT dist = queryPoint.DistSquared(objs[i].point);
         if (dist < minDist) {
             minDist = dist;
-            res = points[i];
+            res = objs[i];
         }
     }
     return res;
 }
 
 template<typename FloatT, int Dim>
-std::vector<Vec<FloatT, Dim>> NaiveFindKNN(const std::vector<Vec<FloatT, Dim>>& points, const Vec<FloatT, Dim>& queryPoint, int k)
+std::vector<PointObj<FloatT, Dim>> LinearFindKNN(const std::vector<PointObj<FloatT, Dim>>& objs, const Vec<FloatT, Dim>& queryPoint, int k)
 {
-    std::vector<Vec<FloatT, Dim>> res;
+    std::vector<PointObj<FloatT, Dim>> res;
+    std::vector<FloatT> distances;
+    int maxDistIndex = 0;
+    FloatT maxDist = 0;
+    res.reserve(k);
+    distances.reserve(k);
+    for (int i = 0; i < k && i < (int)objs.size(); ++i) {
+        res.push_back(objs[i]);
+        distances.push_back(queryPoint.DistSquared(res[i].point));
+        if (distances[i] > maxDist) {
+            maxDistIndex = i;
+            maxDist = distances[i];
+        }
+    }
+    for (int i = k; i < (int)objs.size(); ++i) {
+        FloatT dist = queryPoint.DistSquared(objs[i].point);
+        if (dist < maxDist) {
+            res[maxDistIndex] = objs[i];
+            maxDist = dist;
+            for (int j = 0; j < k; ++j) {
+                if (distances[j] > maxDist) {
+                    maxDistIndex = j;
+                    maxDist = distances[j];
+                    break;
+                }
+            }
+        }
+    }
     return res;
 }
 
 
 template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
+PointObj<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
 {
-    Vec<FloatT, Dim> ann;
+    PointObj<FloatT, Dim> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
     std::priority_queue<DistNode> nodeQueue;
     DistNode rootNode{0, 0, tree.GetBBox()};
@@ -63,8 +90,8 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
         
         if (node->GetType() == NodeType::LEAF)
         {
-            Vec<FloatT, Dim> localNN = NaiveFindNN(node.points, queryPoint);
-            FloatT localNNDist = queryPoint.DistSquared(localNN);
+            PointObj<FloatT, Dim> localNN = LinearFindNN(node.points, queryPoint);
+            FloatT localNNDist = queryPoint.DistSquared(localNN.point);
             if (localNNDist < minDist)
             {
                 minDist = localNNDist;
@@ -104,7 +131,7 @@ Vec<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Ve
 }
 
 template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-void FindKAproximateNearestNeighbors(const BBDTreeType& tree, const Vec<FloatT, Dim>& point)
+std::vector<PointObj<FloatT, Dim>> FindKAproximateNearestNeighbors(const BBDTreeType& tree, const Vec<FloatT, Dim>& point)
 {
     
 }
