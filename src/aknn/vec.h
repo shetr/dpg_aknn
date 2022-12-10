@@ -2,7 +2,10 @@
 #define AKNN_VEC_H
 
 #include <array>
+#include <vector>
+#include <algorithm>
 #include <initializer_list>
+#include <limits>
 
 template<typename T, int Dim>
 struct Vec
@@ -46,14 +49,35 @@ FloatT Square(FloatT v) {
 }
 
 template<typename FloatT, int Dim>
+struct Box;
+
+template<typename FloatT>
+struct BoxSplit
+{
+    int dim;
+    FloatT value;
+    Box left;
+    Box right;
+};
+
+// Axis aligned bounding box
+template<typename FloatT, int Dim>
 struct Box
 {
     Vec<FloatT, Dim> min;
     Vec<FloatT, Dim> max;
 
+    Box() : min(std::numeric_limits<FloatT>::infinity()), max(-std::numeric_limits<FloatT>::infinity()) {}
+
+    static Box GetBoundingBox(const std::vector<Vec<FloatT, Dim>>& points) {
+        Box bbox;
+        std::for_each(points.begin(), points.end(), [&bbox](const Vec<FloatT, Dim>& point) { bbox.Include(point); });
+        return bbox;
+    }
+
     FloatT GetSize(int dim) const { return max[dim] - min[dim]; }
 
-    FloatT SquaredDistance(const Vec<FloatT, Dim>& point)
+    FloatT SquaredDistance(const Vec<FloatT, Dim>& point) const
     {
         FloatT dist = 0;
         for (int d = 0; d < Dim; ++d) {
@@ -62,6 +86,40 @@ struct Box
         }
         return dist;
     }
+
+    void Include(const Vec<FloatT, Dim>& point)
+    {
+        for (int d = 0; d < Dim; ++d) {
+            min[d] = std::min(min[d], point[d]);
+            max[d] = std::max(max[d], point[d]);
+        }
+    }
+
+    BoxSplit FairSplit() const {
+        int splitDim = 0;
+        FloatT maxSize = 0;
+        for (int d = 0; d < Dim; ++d) {
+            FloatT dSize = GetSize(d);
+            if (dSize > maxSize) {
+                maxSize = dSize;
+                splitDim = d;
+            }
+        }
+        Box left = *this;
+        Box right = *this;
+        FloatT value = min[splitDim] + maxSize / 2;
+        left.max[splitDim] = value;
+        right.min[splitDim] = value;
+        return {splitDim, value, left, right};
+    }
+};
+
+// Base class for objects represented by a point
+template<typename FloatT, int Dim>
+class PointObject
+{
+public:
+    Vec<FloatT, Dim> point;
 };
 
 #endif // AKNN_VEC_H
