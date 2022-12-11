@@ -67,7 +67,12 @@ int main()
     PointObj<float, 2> nn = LinearFindNN(points, query);
 
     std::cout << nn.point[0] << ", " << nn.point[1] << std::endl;
+    
+    std::vector<PointObj<float, 2>> knn = LinearFindKNN(points, query, 3);
 
+    for (int i = 0; i < (int)knn.size(); ++i) {
+        std::cout << knn[i].point[0] << ", " << knn[i].point[1] << std::endl;
+    }
     
     //std::cout << (std::numeric_limits<float>::infinity() / 2) << std::endl;
 

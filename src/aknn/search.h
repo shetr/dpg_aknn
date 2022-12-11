@@ -7,6 +7,7 @@
 
 #include "vec.h"
 #include "bbd_tree.h"
+#include "pri_queue.h"
 
 template<typename FloatT, int Dim>
 struct DistNode
@@ -17,10 +18,25 @@ struct DistNode
 };
 
 template<typename FloatT, int Dim>
+struct DistObj
+{
+    FloatT dist;
+    PointObj<FloatT, Dim> obj;
+};
+
+template<typename FloatT, int Dim>
 struct DistNodeCompare
 {
     bool operator()(const DistNode<FloatT, Dim>& p1, const DistNode<FloatT, Dim>& p2) const {
         return !(p1.dist < p2.dist);
+    }
+};
+
+template<typename FloatT, int Dim>
+struct DistObjCompare
+{
+    bool operator()(const DistObj<FloatT, Dim>& p1, const DistObj<FloatT, Dim>& p2) const {
+        return p1.dist < p2.dist;
     }
 };
 
@@ -42,40 +58,23 @@ PointObj<FloatT, Dim> LinearFindNN(const std::vector<PointObj<FloatT, Dim>>& obj
 template<typename FloatT, int Dim>
 std::vector<PointObj<FloatT, Dim>> LinearFindKNN(const std::vector<PointObj<FloatT, Dim>>& objs, const Vec<FloatT, Dim>& queryPoint, int k)
 {
-    std::vector<PointObj<FloatT, Dim>> res;
-    std::vector<FloatT> distances;
-    int maxDistIndex = 0;
-    FloatT maxDist = 0;
-    res.reserve(k);
-    distances.reserve(k);
-    for (int i = 0; i < k && i < (int)objs.size(); ++i) {
-        res.push_back(objs[i]);
-        distances.push_back(queryPoint.DistSquared(res[i].point));
-        if (distances[i] > maxDist) {
-            maxDistIndex = i;
-            maxDist = distances[i];
-        }
+    LinearPriQueue<DistObj<FloatT, Dim>> priQueue;
+    priQueue.Init(k, DistObjCompare<FloatT, Dim>());
+    for (int i = 0; i < (int)objs.size(); ++i) {
+        priQueue.Push({queryPoint.DistSquared(objs[i].point), objs[i]});
     }
-    for (int i = k; i < (int)objs.size(); ++i) {
-        FloatT dist = queryPoint.DistSquared(objs[i].point);
-        if (dist < maxDist) {
-            res[maxDistIndex] = objs[i];
-            maxDist = dist;
-            for (int j = 0; j < k; ++j) {
-                if (distances[j] > maxDist) {
-                    maxDistIndex = j;
-                    maxDist = distances[j];
-                    break;
-                }
-            }
-        }
+    std::vector<DistObj<FloatT, Dim>> values = priQueue.GetValues();
+    std::vector<PointObj<FloatT, Dim>> res;
+    res.reserve(values.size());
+    for (int i = 0; i < (int)values.size(); ++i) {
+        res.push_back(values[i].obj);
     }
     return res;
 }
 
 
-template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-PointObj<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
+template<typename FloatT, int Dim>
+PointObj<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
 {
     PointObj<FloatT, Dim> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
@@ -131,8 +130,8 @@ PointObj<FloatT, Dim> FindAproximateNearestNeighbor(const BBDTreeType& tree, con
     return ann;
 }
 
-template<typename BBDTreeType, typename PriQueueType, typename FloatT, int Dim>
-std::vector<PointObj<FloatT, Dim>> FindKAproximateNearestNeighbors(const BBDTreeType& tree, const Vec<FloatT, Dim>& point)
+template<typename FloatT, int Dim>
+std::vector<PointObj<FloatT, Dim>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim>& tree, const Vec<FloatT, Dim>& queryPoint, int k)
 {
     
 }

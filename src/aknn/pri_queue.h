@@ -28,8 +28,8 @@ private:
     std::vector<T> _values;
     int _k;
     IsLeftSmaller _isLeftSmaller;
-    T* first;
-    T* last;
+    T* _first;
+    T* _last;
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _values.clear();
@@ -37,36 +37,36 @@ public:
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
-    const T& GetFirst() const override { return *first; }
-    const T& GetLast() const override { return *last; }
+    const T& GetFirst() const override { return *_first; }
+    const T& GetLast() const override { return *_last; }
     bool IsEmpty() const override { return _values.empty(); }
-    bool IsFull() const override { return _values.size() == k; }
+    bool IsFull() const override { return _values.size() == _k; }
     int GetSize() const override { return _values.size(); }
     std::vector<T> GetValues() const override { return _values; }
     void Push(const T& value) override {
         if (IsEmpty()) {
             _values.push_back(value);
-            last = _values.data();
-            first = _values.data();
+            _last = _values.data();
+            _first = _values.data();
             return;
         }
         if (!IsFull()) {
             _values.push_back(value);
-            if (_isLeftSmaller(*last, value))
-                last = &_values.back();
-            else if (_isLeftSmaller(value, *first))
-                first = &_values.back();
+            if (_isLeftSmaller(*_last, value))
+                _last = &_values.back();
+            else if (_isLeftSmaller(value, *_first))
+                _first = &_values.back();
             return;
         }
         // insert only if the value is smaller than largest element
-        if (_isLeftSmaller(value, *last)) {
-            *last = value;
-            if (_isLeftSmaller(value, *first))
-                first = last;
+        if (_isLeftSmaller(value, *_last)) {
+            *_last = value;
+            if (_isLeftSmaller(value, *_first))
+                _first = _last;
             // find new largest value
             for (int i = 0; i < GetSize(); ++i)
-                if (_isLeftSmaller(*last, _values[i]))
-                    last = &_values[i];
+                if (_isLeftSmaller(*_last, _values[i]))
+                    _last = &_values[i];
         }
     }
 };
@@ -78,7 +78,7 @@ private:
     std::vector<T> _heap;
     int _k;
     IsLeftSmaller _isLeftSmaller;
-    T* first;
+    T* _first;
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _heap.clear();
@@ -86,7 +86,7 @@ public:
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
-    const T& GetFirst() const override { return *first; }
+    const T& GetFirst() const override { return *_first; }
     const T& GetLast() const override { return _heap.front(); }
     bool IsEmpty() const override { return _heap.empty(); }
     bool IsFull() const override { return _heap.size() == k; }
@@ -95,14 +95,14 @@ public:
     void Push(const T& value) override {
         if (IsEmpty()) {
             _heap.push_back(value);
-            first = _heap.data();
+            _first = _heap.data();
             return;
         }
         if (!IsFull()) {
             int i = GetSize();
             _heap.push_back(value);
-            if (_isLeftSmaller(value, *first)) {
-                first = &_heap[i];
+            if (_isLeftSmaller(value, *_first)) {
+                _first = &_heap[i];
                 return;
             }
             // ensure the heap property that parent is larger
@@ -131,8 +131,8 @@ public:
                 i = larger;
             }
             // update first
-            if (_isLeftSmaller(value, *first)) {
-                first = &_heap[i];
+            if (_isLeftSmaller(value, *_first)) {
+                _first = &_heap[i];
             }
         }
     }
