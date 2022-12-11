@@ -8,6 +8,7 @@
 // TODO: udelat strukturu testovani a zpusob cneni vstupnich dat, zobrazovani vystupnich dat
 // TODO: napsat naivni BBD strom (NaiveBBDTree)
 // TODO: napsat prostorove optimalni BBD strom (TinyBBDTree)
+// TODO: unit testy - hlavne na fronty, ale dali by se pouzit i na jednoduche testy NN, BBD atd ...
 
 // plan:
 // 2 binarky: jedna knihovna s aknn, testovaci aplikace

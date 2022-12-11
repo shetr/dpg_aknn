@@ -33,9 +33,9 @@ private:
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _values.clear();
+        _values.reserve(k);
         _k = k;
         _isLeftSmaller = isLeftSmaller;
-        _values.reserve(k);
     }
     const T& GetFirst() const override { return *first; }
     const T& GetLast() const override { return *last; }
@@ -58,10 +58,12 @@ public:
                 first = &_values.back();
             return;
         }
+        // insert only if the value is smaller than largest element
         if (_isLeftSmaller(value, *last)) {
             *last = value;
             if (_isLeftSmaller(value, *first))
                 first = last;
+            // find new largest value
             for (int i = 0; i < GetSize(); ++i)
                 if (_isLeftSmaller(*last, _values[i]))
                     last = &_values[i];
@@ -80,9 +82,9 @@ private:
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _heap.clear();
+        _heap.reserve(k);
         _k = k;
         _isLeftSmaller = isLeftSmaller;
-        _heap.reserve(k);
     }
     const T& GetFirst() const override { return *first; }
     const T& GetLast() const override { return _heap.front(); }
@@ -103,6 +105,7 @@ public:
                 first = &_heap[i];
                 return;
             }
+            // ensure the heap property that parent is larger
             while (i > 0) {
                 int p = GetParent(i);
                 if (_isLeftSmaller(_heap[i], _heap[p]))
@@ -113,9 +116,11 @@ public:
             }
             return;
         }
+        // insert only if the value is smaller than largest element
         if (_isLeftSmaller(value, _heap[0])) {
             _heap[0] = value;
             int i = 0;
+            // ensure the heap property that parent is larger than its childs
             for (int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
                 int r = l + 1;
                 int larger = _isLeftSmaller(_heap[r], _heap[l]) ? l : r;
@@ -125,17 +130,15 @@ public:
                     std::swap(_heap[i], _heap[larger]);
                 i = larger;
             }
-
+            // update first
             if (_isLeftSmaller(value, *first)) {
                 first = &_heap[i];
             }
         }
     }
 private:
-    bool HasChild(int i) const { return GetLeftChild(i) < GetSize(); }
     int GetParent(int i) const { return (i - 1) >> 1; }
     int GetLeftChild(int i) const { return (i << 1) + 1; }
-    int GetRightChild(int i) const { return (i << 1) + 2; }
 };
 
 #endif // AKNN_PRI_QUEUE_H
