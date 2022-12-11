@@ -9,9 +9,9 @@ template<typename T>
 class FixedPriQueue
 {
 public:
-    using Compare = std::function<bool(const T&, const T&)>;
+    using IsLeftSmaller = std::function<bool(const T&, const T&)>;
 
-    virtual void Init(int k, Compare compare) = 0;
+    virtual void Init(int k, IsLeftSmaller isLeftSmaller) = 0;
     virtual const T& GetFirst() const = 0;
     virtual const T& GetLast() const = 0;
     virtual bool IsEmpty() const = 0;
@@ -27,36 +27,115 @@ class LinearPriQueue : public FixedPriQueue<T>
 private:
     std::vector<T> _values;
     int _k;
-    Compare _compare;
+    IsLeftSmaller _isLeftSmaller;
+    T* first;
+    T* last;
 public:
-    void Init(int k, Compare compare) override {
+    void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _values.clear();
         _k = k;
-        _compare = compare;
+        _isLeftSmaller = isLeftSmaller;
         _values.reserve(k);
     }
-    const T& GetFirst() const override { return _values.front(); }
-    const T& GetLast() const override { return _values.back(); }
+    const T& GetFirst() const override { return *first; }
+    const T& GetLast() const override { return *last; }
     bool IsEmpty() const override { return _values.empty(); }
     bool IsFull() const override { return _values.size() == k; }
     int GetSize() const override { return _values.size(); }
     std::vector<T> GetValues() const override { return _values; }
     void Push(const T& value) override {
-        bool inserted = false;
-        for (int i = 0; i < GetSize(); ++i) {
-            if (_compare(value, _values[i])) {
-                _values.insert(_values.begin() + i, value);
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted && GetSize() < k) {
+        if (IsEmpty()) {
             _values.push_back(value);
+            last = _values.data();
+            first = _values.data();
+            return;
         }
-        if (GetSize() > _k) {
-            _values.pop_back();
+        if (!IsFull()) {
+            _values.push_back(value);
+            if (_isLeftSmaller(*last, value))
+                last = &_values.back();
+            else if (_isLeftSmaller(value, *first))
+                first = &_values.back();
+            return;
+        }
+        if (_isLeftSmaller(value, *last)) {
+            *last = value;
+            if (_isLeftSmaller(value, *first))
+                first = last;
+            for (int i = 0; i < GetSize(); ++i)
+                if (_isLeftSmaller(*last, _values[i]))
+                    last = &_values[i];
         }
     }
+};
+
+template<typename T>
+class HeapPriQueue : public FixedPriQueue<T>
+{
+private:
+    std::vector<T> _heap;
+    int _k;
+    IsLeftSmaller _isLeftSmaller;
+    T* first;
+public:
+    void Init(int k, IsLeftSmaller isLeftSmaller) override {
+        _heap.clear();
+        _k = k;
+        _isLeftSmaller = isLeftSmaller;
+        _heap.reserve(k);
+    }
+    const T& GetFirst() const override { return *first; }
+    const T& GetLast() const override { return _heap.front(); }
+    bool IsEmpty() const override { return _heap.empty(); }
+    bool IsFull() const override { return _heap.size() == k; }
+    int GetSize() const override { return _heap.size(); }
+    std::vector<T> GetValues() const override { return _heap; }
+    void Push(const T& value) override {
+        if (IsEmpty()) {
+            _heap.push_back(value);
+            first = _heap.data();
+            return;
+        }
+        if (!IsFull()) {
+            int i = GetSize();
+            _heap.push_back(value);
+            if (_isLeftSmaller(value, *first)) {
+                first = &_heap[i];
+                return;
+            }
+            while (i > 0) {
+                int p = GetParent(i);
+                if (_isLeftSmaller(_heap[i], _heap[p]))
+                    break;
+                else
+                    std::swap(_heap[i], _heap[p]);
+                i = p;
+            }
+            return;
+        }
+        if (_isLeftSmaller(value, _heap[0])) {
+            _heap[0] = value;
+            int i = 0;
+            for (int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
+                int r = l + 1;
+                int larger = _isLeftSmaller(_heap[r], _heap[l]) ? l : r;
+                if (_isLeftSmaller(_heap[larger], _heap[i]))
+                    break;
+                else
+                    std::swap(_heap[i], _heap[larger]);
+                i = larger;
+            }
+
+            if (_isLeftSmaller(value, *first)) {
+                first = &_heap[i];
+            }
+        }
+    }
+private:
+    bool HasChild(int i) const { return GetLeftChild(i) < GetSize(); }
+    int GetParent(int i) const { return (i - 1) >> 1; }
+    int GetLeftChild(int i) const { return (i << 1) + 1; }
+    int GetRightChild(int i) const { return (i << 1) + 2; }
 };
 
 #endif // AKNN_PRI_QUEUE_H
