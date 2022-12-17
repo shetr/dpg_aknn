@@ -78,7 +78,7 @@ private:
     std::vector<T> _heap;
     int _k;
     IsLeftSmaller _isLeftSmaller;
-    T* _first;
+    T _first;
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _heap.clear();
@@ -86,7 +86,7 @@ public:
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
-    const T& GetFirst() const override { return *_first; }
+    const T& GetFirst() const override { return _first; }
     const T& GetLast() const override { return _heap.front(); }
     bool IsEmpty() const override { return _heap.empty(); }
     bool IsFull() const override { return _heap.size() == k; }
@@ -95,33 +95,31 @@ public:
     void Push(const T& value) override {
         if (IsEmpty()) {
             _heap.push_back(value);
-            _first = _heap.data();
-            return;
-        }
-        if (!IsFull()) {
-            int i = GetSize();
+            _first = value;
+        } else if (!IsFull()) {
             _heap.push_back(value);
-            if (_isLeftSmaller(value, *_first)) {
-                _first = &_heap[i];
-                return;
+            if (_isLeftSmaller(value, _first)) {
+                _first = value;
+            } else {
+                // ensure the heap property that parent is larger
+                int i = GetSize();
+                while (i > 0) {
+                    int p = GetParent(i);
+                    if (_isLeftSmaller(_heap[i], _heap[p]))
+                        break;
+                    else
+                        std::swap(_heap[i], _heap[p]);
+                    i = p;
+                }
             }
-            // ensure the heap property that parent is larger
-            while (i > 0) {
-                int p = GetParent(i);
-                if (_isLeftSmaller(_heap[i], _heap[p]))
-                    break;
-                else
-                    std::swap(_heap[i], _heap[p]);
-                i = p;
-            }
-            return;
-        }
-        // insert only if the value is smaller than largest element
-        if (_isLeftSmaller(value, _heap[0])) {
+        } else if (_isLeftSmaller(value, _heap[0])) { // insert only if the value is smaller than largest element
             _heap[0] = value;
-            int i = 0;
+            // update first
+            if (_isLeftSmaller(value, _first)) {
+                _first = value;
+            }
             // ensure the heap property that parent is larger than its childs
-            for (int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
+            for (int i = 0, int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
                 int r = l + 1;
                 int larger = _isLeftSmaller(_heap[r], _heap[l]) ? l : r;
                 if (_isLeftSmaller(_heap[larger], _heap[i]))
@@ -130,15 +128,44 @@ public:
                     std::swap(_heap[i], _heap[larger]);
                 i = larger;
             }
-            // update first
-            if (_isLeftSmaller(value, *_first)) {
-                _first = &_heap[i];
-            }
         }
     }
 private:
     int GetParent(int i) const { return (i - 1) >> 1; }
     int GetLeftChild(int i) const { return (i << 1) + 1; }
+};
+
+template<typename T>
+class StdPriQueue : public FixedPriQueue<T>
+{
+private:
+    std::vector<T> _heap;
+    int _k;
+    IsLeftSmaller _isLeftSmaller;
+    T _first;
+public:
+    void Init(int k, IsLeftSmaller isLeftSmaller) override {
+        _heap.clear();
+        _heap.reserve(k);
+        _k = k;
+        _isLeftSmaller = isLeftSmaller;
+    }
+    const T& GetFirst() const override { return _first; }
+    const T& GetLast() const override { return _heap.front(); }
+    bool IsEmpty() const override { return _heap.empty(); }
+    bool IsFull() const override { return _heap.size() == k; }
+    int GetSize() const override { return _heap.size(); }
+    std::vector<T> GetValues() const override { return _heap; }
+    void Push(const T& value) override {
+        if (IsEmpty() || _isLeftSmaller(value, _first)) {
+            _first = value;
+        }
+        _heap.push_back(value);
+        std::push_heap(_heap.begin(), _heap.end(), _isLeftSmaller);
+        if (_heap.size() > _k) {
+            std::pop_heap(_heap.begin(), _heap.end(), _isLeftSmaller);
+        }
+    }
 };
 
 #endif // AKNN_PRI_QUEUE_H
