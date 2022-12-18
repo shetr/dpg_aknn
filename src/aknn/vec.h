@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <limits>
+#include <iostream>
 
 template<typename T, int Dim>
 struct Vec
@@ -28,6 +29,13 @@ struct Vec
             res[i] = v[i] - other[i];
         }
         return res;
+    }
+
+    bool operator==(const Vec<T, Dim>& other) const {
+        for (int i = 0; i < Dim; ++i)
+            if (v[i] != other[i])
+                return false;
+        return true;
     }
 
     T LengthSquared() const {
@@ -76,6 +84,11 @@ struct Box
     Vec<FloatT, Dim> max;
 
     Box() : min(std::numeric_limits<FloatT>::infinity()), max(-std::numeric_limits<FloatT>::infinity()) {}
+    Box(Vec<FloatT, Dim> min, Vec<FloatT, Dim> max) : min(min), max(max) {}
+
+    bool operator==(const Box<FloatT, Dim>& other) const {
+        return min == other.min && max == other.max;
+    }
 
     static Box GetBoundingBox(const std::vector<PointObj<FloatT, Dim>>& objs) {
         Box bbox;
@@ -121,5 +134,71 @@ struct Box
         return {splitDim, value, left, right};
     }
 };
+
+template<typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
+    os << "[";
+    for(int i = 0; i < v.size(); ++i) {
+        os << v[i] << (i + 1 == v.size() ? "" : ", ");
+    }
+    os << "]";
+    return os;
+}
+
+template<typename T, int N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<T, N>& v) {
+    os << "[";
+    for(int i = 0; i < v.size(); ++i) {
+        os << v[i] << (i + 1 == v.size() ? "" : ", ");
+    }
+    os << "]";
+    return os;
+}
+
+template<typename FloatT, int Dim>
+inline std::ostream& operator<<(std::ostream& os, const Vec<FloatT, Dim>& v) {
+    os << "(";
+    for(int d = 0; d < Dim; ++d) {
+        os << v[d] << (d + 1 == Dim ? "" : ", ");
+    }
+    os << ")";
+    return os;
+}
+
+template<typename FloatT, int Dim>
+inline std::ostream& operator<<(std::ostream& os, const Box<FloatT, Dim>& box) {
+    os << "{min: " << box.min << ", max: " << box.max << "}";
+    return os;
+}
+
+using VecF1 = Vec<float, 1>;
+using VecF2 = Vec<float, 2>;
+using VecF3 = Vec<float, 3>;
+using VecF4 = Vec<float, 4>;
+
+using VecD1 = Vec<double, 1>;
+using VecD2 = Vec<double, 2>;
+using VecD3 = Vec<double, 3>;
+using VecD4 = Vec<double, 4>;
+
+using BoxF1 = Box<float, 1>;
+using BoxF2 = Box<float, 2>;
+using BoxF3 = Box<float, 3>;
+using BoxF4 = Box<float, 4>;
+
+using BoxD1 = Box<double, 1>;
+using BoxD2 = Box<double, 2>;
+using BoxD3 = Box<double, 3>;
+using BoxD4 = Box<double, 4>;
+
+using PointObjF1 = PointObj<float, 1>;
+using PointObjF2 = PointObj<float, 2>;
+using PointObjF3 = PointObj<float, 3>;
+using PointObjF4 = PointObj<float, 4>;
+
+using PointObjD1 = PointObj<double, 1>;
+using PointObjD2 = PointObj<double, 2>;
+using PointObjD3 = PointObj<double, 3>;
+using PointObjD4 = PointObj<double, 4>;
 
 #endif // AKNN_VEC_H

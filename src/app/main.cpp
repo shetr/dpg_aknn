@@ -34,9 +34,9 @@
 // ruzne typy prioritnich front jsou mysleny u samotneho pruchodu pri vyhledavani nebo i u fronty kandidatu knn?
 // lze na tohle pouzit to glv?
 
-#include "aknn/vec.h"
-#include "aknn/bbd_tree.h"
-#include "aknn/search.h"
+#include <aknn/vec.h>
+#include <aknn/bbd_tree.h>
+#include <aknn/search.h>
 
 void BuildBBDTree()
 {

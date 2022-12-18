@@ -89,7 +89,7 @@ public:
     const T& GetFirst() const override { return _first; }
     const T& GetLast() const override { return _heap.front(); }
     bool IsEmpty() const override { return _heap.empty(); }
-    bool IsFull() const override { return _heap.size() == k; }
+    bool IsFull() const override { return _heap.size() == _k; }
     int GetSize() const override { return _heap.size(); }
     std::vector<T> GetValues() const override { return _heap; }
     void Push(const T& value) override {
@@ -119,7 +119,8 @@ public:
                 _first = value;
             }
             // ensure the heap property that parent is larger than its childs
-            for (int i = 0, int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
+            int i = 0;
+            for (int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
                 int r = l + 1;
                 int larger = _isLeftSmaller(_heap[r], _heap[l]) ? l : r;
                 if (_isLeftSmaller(_heap[larger], _heap[i]))
@@ -153,7 +154,7 @@ public:
     const T& GetFirst() const override { return _first; }
     const T& GetLast() const override { return _heap.front(); }
     bool IsEmpty() const override { return _heap.empty(); }
-    bool IsFull() const override { return _heap.size() == k; }
+    bool IsFull() const override { return _heap.size() == _k; }
     int GetSize() const override { return _heap.size(); }
     std::vector<T> GetValues() const override { return _heap; }
     void Push(const T& value) override {
