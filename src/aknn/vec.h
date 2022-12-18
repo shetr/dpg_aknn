@@ -171,6 +171,14 @@ inline std::ostream& operator<<(std::ostream& os, const Box<FloatT, Dim>& box) {
     return os;
 }
 
+template<typename FloatT, int Dim>
+std::vector<Vec<FloatT, Dim>> ObjsToVec(const std::vector<PointObj<FloatT, Dim>>& objs) {
+    std::vector<Vec<FloatT, Dim>> res;
+    res.resize(objs.size());
+    std::transform(objs.begin(), objs.end(), res.begin(), [&](const PointObj<FloatT, Dim>& obj) { return obj.point; });
+    return res;
+}
+
 using VecF1 = Vec<float, 1>;
 using VecF2 = Vec<float, 2>;
 using VecF3 = Vec<float, 3>;
