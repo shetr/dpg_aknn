@@ -97,12 +97,12 @@ public:
             _heap.push_back(value);
             _first = value;
         } else if (!IsFull()) {
+            int i = GetSize();
             _heap.push_back(value);
             if (_isLeftSmaller(value, _first)) {
                 _first = value;
             } else {
                 // ensure the heap property that parent is larger
-                int i = GetSize();
                 while (i > 0) {
                     int p = GetParent(i);
                     if (_isLeftSmaller(_heap[i], _heap[p]))
@@ -122,7 +122,7 @@ public:
             int i = 0;
             for (int l = GetLeftChild(i); l < GetSize(); l = GetLeftChild(i)) {
                 int r = l + 1;
-                int larger = _isLeftSmaller(_heap[r], _heap[l]) ? l : r;
+                int larger = r < GetSize() ? (_isLeftSmaller(_heap[r], _heap[l]) ? l : r) : l;
                 if (_isLeftSmaller(_heap[larger], _heap[i]))
                     break;
                 else
@@ -165,6 +165,7 @@ public:
         std::push_heap(_heap.begin(), _heap.end(), _isLeftSmaller);
         if (_heap.size() > _k) {
             std::pop_heap(_heap.begin(), _heap.end(), _isLeftSmaller);
+            _heap.pop_back();
         }
     }
 };

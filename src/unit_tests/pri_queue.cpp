@@ -97,10 +97,10 @@ TEST(LinearPriQueueInt, basicInts) {
     TestPriQueue<LinearPriQueue<int>>();
 }
 
-TEST(StdPriQueueInt, basicInts) {
-    TestPriQueue<StdPriQueue<int>>();
-}
-
 TEST(HeapPriQueueInt, basicInts) {
     TestPriQueue<HeapPriQueue<int>>();
+}
+
+TEST(StdPriQueueInt, basicInts) {
+    TestPriQueue<StdPriQueue<int>>();
 }

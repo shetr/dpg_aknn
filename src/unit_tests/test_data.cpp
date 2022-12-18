@@ -18,7 +18,7 @@ const TestData& TestData::Get()
 
 TestData::TestData() : gen(5)
 {
-    basicInts = {10, 2, 5, 7, 3, 1, 9, 8, 4, 6};
+    basicInts = {9, 2, 5, 10, 3, 1, 7, 8, 4, 6};
 
     cube2d = GenGrid<2>(1);
     cube3d = GenGrid<3>(1);
