@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 // udelat nejdrive uplne naivni nn a knn pro jednoduchost (linearni pruchod)
+// TODO: v hlavickach, pokud mam implementaci funkci, tak ji presunout na konec souboru
+// TODO: mozna presunout search funkce BBD stromu do jeho tride, ale to jen za predpokladu ze nechci delat dalsi BBD strom
 // TODO: nejdriv napsat fair split strom (FairSplitTree)
 // TODO: udelat strukturu testovani a zpusob cneni vstupnich dat, zobrazovani vystupnich dat
 // TODO: napsat naivni BBD strom (NaiveBBDTree)
@@ -64,11 +66,11 @@ int main()
     points.push_back({Vec<float, 2>({1, 1})});
 
     Vec<float, 2> query({0.f, 0.75f});
-    PointObj<float, 2> nn = LinearFindNN(points, query);
+    PointObj<float, 2> nn = LinearFindNearestNeighbor(points, query);
 
     std::cout << nn.point[0] << ", " << nn.point[1] << std::endl;
     
-    std::vector<PointObj<float, 2>> knn = LinearFindKNN(points, query, 3);
+    std::vector<PointObj<float, 2>> knn = LinearFindKNearestNeighbors(points, query, 3);
 
     for (int i = 0; i < (int)knn.size(); ++i) {
         std::cout << knn[i].point[0] << ", " << knn[i].point[1] << std::endl;

@@ -56,12 +56,14 @@ FloatT Square(FloatT v) {
     return v * v;
 }
 
+struct Empty {};
+
 // Object represented by a point
-template<typename FloatT, int Dim>
+template<typename FloatT, int Dim, typename ObjData = Empty>
 struct PointObj
 {
     Vec<FloatT, Dim> point;
-    void* customData = nullptr;
+    ObjData data;
 };
 
 template<typename FloatT, int Dim>
@@ -90,9 +92,10 @@ struct Box
         return min == other.min && max == other.max;
     }
 
-    static Box GetBoundingBox(const std::vector<PointObj<FloatT, Dim>>& objs) {
+    template<typename ObjData = Empty>
+    static Box GetBoundingBox(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs) {
         Box bbox;
-        std::for_each(objs.begin(), objs.end(), [&bbox](const PointObj<FloatT, Dim>& obj) { bbox.Include(obj.point); });
+        std::for_each(objs.begin(), objs.end(), [&bbox](const PointObj<FloatT, Dim, ObjData>& obj) { bbox.Include(obj.point); });
         return bbox;
     }
 
@@ -171,12 +174,19 @@ inline std::ostream& operator<<(std::ostream& os, const Box<FloatT, Dim>& box) {
     return os;
 }
 
-template<typename FloatT, int Dim>
-std::vector<Vec<FloatT, Dim>> ObjsToVec(const std::vector<PointObj<FloatT, Dim>>& objs) {
+template<typename FloatT, int Dim, typename ObjData = Empty>
+std::vector<Vec<FloatT, Dim>> ObjsToVec(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs) {
     std::vector<Vec<FloatT, Dim>> res;
     res.resize(objs.size());
-    std::transform(objs.begin(), objs.end(), res.begin(), [&](const PointObj<FloatT, Dim>& obj) { return obj.point; });
-    return res;
+    std::transform(objs.begin(), objs.end(), res.begin(), [&](const PointObj<FloatT, Dim, ObjData>& obj) { return obj.point; });
+    return std::move(res);
+}
+
+template<typename FloatT, int Dim>
+void SortByDistanceToPoint(std::vector<Vec<FloatT, Dim>>& points, const Vec<FloatT, Dim>& point) {
+    std::sort(points.begin(), points.end(), [&point](const Vec<FloatT, Dim>& p1, const Vec<FloatT, Dim>& p2) {
+        return point.DistSquared(p1) < point.DistSquared(p2);
+    });
 }
 
 using VecF1 = Vec<float, 1>;

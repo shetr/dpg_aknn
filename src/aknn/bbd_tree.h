@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <stdint.h>
-#include <variant>
 
 #include "vec.h"
 
@@ -145,13 +144,13 @@ int GetNodeOffset(NodeType nodeType)
     return 0;
 }
 
-template<typename FloatT, int Dim, typename FuncT>
-PointObj<FloatT, Dim>* SplitPoints(PointObj<FloatT, Dim>* beg, PointObj<FloatT, Dim>* end, PointObj<FloatT, Dim>* auxBeg, FuncT isLeft)
+template<typename FloatT, int Dim, typename FuncT, typename ObjData = Empty>
+PointObj<FloatT, Dim, ObjData>* SplitPoints(PointObj<FloatT, Dim, ObjData>* beg, PointObj<FloatT, Dim, ObjData>* end, PointObj<FloatT, Dim, ObjData>* auxBeg, FuncT isLeft)
 {
     int size = end - beg;
     int left = 0;
     int right = size - 1;
-    for (const PointObj<FloatT, Dim>* obj = beg; obj != end; ++obj)
+    for (const PointObj<FloatT, Dim, ObjData>* obj = beg; obj != end; ++obj)
     {
         bool putLeft = isLeft(obj->point);
         if (putLeft) {
@@ -164,24 +163,26 @@ PointObj<FloatT, Dim>* SplitPoints(PointObj<FloatT, Dim>* beg, PointObj<FloatT, 
     return beg + left;
 }
 
-template<typename FloatT, int Dim>
+template<typename FloatT, int Dim, typename ObjData = Empty>
 class BBDTree
 {
 public:
+    using PointObjT = PointObj<FloatT, Dim, ObjData>;
+
     BBDTree() {}
 
-    static BBDTree BuildFairSplitTree(int leafMaxSize, const std::vector<PointObj<FloatT, Dim>>& objs)
+    static BBDTree BuildFairSplitTree(int leafMaxSize, const std::vector<PointObjT>& objs)
     {
         BBDTree tree(leafMaxSize, objs);
-        std::vector<PointObj<FloatT, Dim>> aux = objs;
+        std::vector<PointObjT> aux = objs;
         tree.BuildFairSplitTreeR(tree._bbox, _objs.data(), _objs.data() + _objs.size(), aux.data());
         tree.RemoveTrivialNodes();
         return tree;
     }
-    static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<Vec<FloatT, Dim>>& objs)
+    static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<PointObjT>& objs)
     {
         BBDTree tree(leafMaxSize, objs);
-        std::vector<PointObj<FloatT, Dim>> aux = objs;
+        std::vector<PointObjT> aux = objs;
         // TODO: BuildMidpointSplitTreeR
         tree.RemoveTrivialNodes();
         return tree;
@@ -195,11 +196,11 @@ public:
 
 private:
     std::vector<Node> _nodes;
-    std::vector<PointObj<FloatT, Dim>> _objs;
+    std::vector<PointObjT> _objs;
     Box<FloatT, Dim> _bbox;
     int _leafMaxSize;
 
-    BBDTree(int leafMaxSize, const std::vector<PointObj<FloatT, Dim>>& objs) : _leafMaxSize(leafMaxSize), _objs(objs), _bbox(Box<FloatT, Dim>::GetBoundingBox(objs)) {}
+    BBDTree(int leafMaxSize, const std::vector<PointObjT>& objs) : _leafMaxSize(leafMaxSize), _objs(objs), _bbox(Box<FloatT, Dim>::GetBoundingBox(objs)) {}
 
     SplitNode* AddSplitNode(int splitDim) {
         static_assert(sizeof(SplitNode) == sizeof(Node));
@@ -227,7 +228,7 @@ private:
         return leafNode;
     }
 
-    Node* BuildFairSplitTreeR(const Box<FloatT, Dim>& box, PointObj<FloatT, Dim>* pointsBeg, PointObj<FloatT, Dim>* pointsEnd, PointObj<FloatT, Dim>* auxBeg)
+    Node* BuildFairSplitTreeR(const Box<FloatT, Dim>& box, PointObjT* pointsBeg, PointObjT* pointsEnd, PointObjT* auxBeg)
     {
         int size = pointsEnd - pointsBeg;
         if (size == 0) {
@@ -237,7 +238,7 @@ private:
         } else {
             BoxSplit<FloatT, Dim> split = box.FairSplit();
             SplitNode* splitNode = AddSplitNode(split.dim);
-            PointObj<FloatT, Dim>* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
+            PointObjT* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
                 return point[split.dim] < split.value;
             });
             // build left subtree
