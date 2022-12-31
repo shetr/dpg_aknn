@@ -13,7 +13,7 @@ template<typename FloatT, int Dim>
 struct DistNode
 {
     FloatT dist;
-    int64_t nodeIdx;
+    uint64_t nodeIdx;
     Box<FloatT, Dim> box;
 };
 
@@ -29,14 +29,14 @@ std::vector<PointObj<FloatT, Dim, ObjData>> DistObjsToPointObjs(const std::vecto
     std::vector<PointObj<FloatT, Dim, ObjData>> res;
     res.resize(distObjs.size());
     std::transform(distObjs.begin(), distObjs.end(), res.begin(), [&](const DistObj<FloatT, Dim, ObjData>& distObj) { return distObj.obj; });
-    return std::move(res);
+    return res;
 }
 
 template<typename FloatT, int Dim>
 struct DistNodeCompare
 {
     bool operator()(const DistNode<FloatT, Dim>& p1, const DistNode<FloatT, Dim>& p2) const {
-        return !(p1.dist < p2.dist);
+        return !(p1.dist <= p2.dist);
     }
 };
 
@@ -101,6 +101,10 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
         DistNode<FloatT, Dim> distNode = nodeQueue.top();
         const Node* node = tree.GetNode(distNode.nodeIdx);
         nodeQueue.pop();
+
+        if (distNode.dist > minDist / (1 + epsilon)) {
+            break;
+        }
         
         if (node->GetType() == NodeType::LEAF)
         {
@@ -112,10 +116,6 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
             {
                 minDist = localNNDist;
                 ann = localNN;
-            }
-            else if (localNNDist > minDist / (1 + epsilon))
-            {
-                break;
             }
         }
         else

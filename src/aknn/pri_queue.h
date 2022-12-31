@@ -28,8 +28,8 @@ private:
     std::vector<T> _values;
     int _k;
     IsLeftSmaller _isLeftSmaller;
-    T* _first;
-    T* _last;
+    T* _first = nullptr;
+    T* _last = nullptr;
 public:
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _values.clear();

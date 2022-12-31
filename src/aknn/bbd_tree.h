@@ -62,10 +62,10 @@ public:
     void SetLeftChild(bool exists) {
         _customData_nodeType = (_customData_nodeType & (~LEFT_CHILD_MASK)) | (((uint64_t)exists) << LEFT_CHILD_POS);
     }
-    int64_t GetRightChildIndex() const {
-        return (int64_t)(_customData_nodeType >> RIGHT_CHILD_POS);
+    uint64_t GetRightChildIndex() const {
+        return (uint64_t)(_customData_nodeType >> RIGHT_CHILD_POS);
     }
-    void SetRightChildIndex(int64_t i) {
+    void SetRightChildIndex(uint64_t i) {
         _customData_nodeType = (_customData_nodeType & (~RIGHT_CHILD_MASK)) | (i << RIGHT_CHILD_POS);
     }
 };
@@ -116,15 +116,15 @@ public:
         SetPointsEndIndex(pointsEnd);
     }
 
-    int64_t GetPointsBegIndex() const { return (int64_t)(_customData_nodeType >> NODE_TYPE_BITS); }
-    int64_t GetPointsEndIndex() const { return _objsEnd; }
+    uint64_t GetPointsBegIndex() const { return (uint64_t)(_customData_nodeType >> NODE_TYPE_BITS); }
+    uint64_t GetPointsEndIndex() const { return _objsEnd; }
 private:
     void SetPointsBegIndex(uint64_t i) { _customData_nodeType = (_customData_nodeType & NODE_TYPE_MASK) | (i << NODE_TYPE_BITS); }
     void SetPointsEndIndex(uint64_t i) { _objsEnd = i; }
 };
 
 template<typename FloatT, int Dim>
-int64_t GetNodeOffset(NodeType nodeType)
+uint64_t GetNodeOffset(NodeType nodeType)
 {
     static_assert(sizeof(SplitNode) == sizeof(Node));
     static_assert(sizeof(InnerNode) == sizeof(Node));
@@ -189,12 +189,12 @@ public:
     }
 
     Node* GetRoot() { return GetNode(0); }
-    Node* GetNode(int64_t index) { return &_nodes[index]; }
+    Node* GetNode(uint64_t index) { return &_nodes[index]; }
     
     const Node* GetRoot() const { return GetNode(0); }
-    const Node* GetNode(int64_t index) const { return &_nodes[index]; }
+    const Node* GetNode(uint64_t index) const { return &_nodes[index]; }
     
-    const PointObjT* GetObj(int64_t index) const { return &_objs[index]; }
+    const PointObjT* GetObj(uint64_t index) const { return _objs.data() + index; }
 
     const Box<FloatT, Dim>& GetBBox() const { return _bbox; }
 
@@ -206,56 +206,62 @@ private:
 
     BBDTree(int leafMaxSize, const std::vector<PointObjT>& objs) : _leafMaxSize(leafMaxSize), _objs(objs), _bbox(Box<FloatT, Dim>::GetBoundingBox(objs)) {}
 
-    SplitNode* AddSplitNode(int splitDim) {
+    uint64_t AddSplitNode(int splitDim) {
         static_assert(sizeof(SplitNode) == sizeof(Node));
+        uint64_t index = (int64_t)_nodes.size();
         _nodes.push_back(Node());
         SplitNode* splitNode = (SplitNode*)&_nodes.back();
         *splitNode = SplitNode(splitDim);
-        return splitNode;
+        return index;
     }
-    ShrinkNode<FloatT, Dim>* AddShrinkNode(const Box<FloatT, Dim>& shrinkBox) {
+    uint64_t AddShrinkNode(const Box<FloatT, Dim>& shrinkBox) {
         static_assert(sizeof(ShrinkNode<FloatT, Dim>) % sizeof(Node) == 0);
-        _nodes.push_back(Node());
-        ShrinkNode<FloatT, Dim>* shrinkNode = (ShrinkNode<FloatT, Dim>*)&_nodes.back();
-        for(int i = 1; i < GetNodeOffset(NodeType::SHRINK); ++i) {
+        uint64_t index = (int64_t)_nodes.size();
+        for(int i = 0; i < GetNodeOffset(NodeType::SHRINK); ++i) {
             _nodes.push_back(Node());
         }
+        ShrinkNode<FloatT, Dim>* shrinkNode = (ShrinkNode<FloatT, Dim>*) &_nodes[index];
         *shrinkNode = ShrinkNode<FloatT, Dim>(shrinkBox);
-        return shrinkNode;
+        return index;
     }
-    LeafNode* AddLeafNode(uint64_t pointsBeg, uint64_t pointsEnd) {
+    uint64_t AddLeafNode(uint64_t pointsBeg, uint64_t pointsEnd) {
         static_assert(sizeof(LeafNode) == 2*sizeof(Node));
+        uint64_t index = (int64_t)_nodes.size();
         _nodes.push_back(Node());
-        LeafNode* leafNode = (LeafNode*)&_nodes.back();
         _nodes.push_back(Node());
+        LeafNode* leafNode = (LeafNode*)&_nodes[index];
         *leafNode = LeafNode(pointsBeg, pointsEnd);
-        return leafNode;
+        return index;
     }
 
-    Node* BuildFairSplitTreeR(const Box<FloatT, Dim>& box, PointObjT* pointsBeg, PointObjT* pointsEnd, PointObjT* auxBeg)
+    uint64_t BuildFairSplitTreeR(const Box<FloatT, Dim>& box, PointObjT* pointsBeg, PointObjT* pointsEnd, PointObjT* auxBeg)
     {
-        int size = pointsEnd - pointsBeg;
+        uint64_t size = pointsEnd - pointsBeg;
         if (size == 0) {
-            return nullptr;
+            // indicate that there is no child with 0 index (only root has 0 index and it can't be child of any node)
+            return 0;
         } else if (size <= _leafMaxSize) {
             return AddLeafNode(pointsBeg - _objs.data(), pointsEnd - _objs.data());
         } else {
             BoxSplit<FloatT, Dim> split = box.FairSplit();
-            SplitNode* splitNode = AddSplitNode(split.dim);
+            uint64_t splitNodeIndex = AddSplitNode(split.dim);
+            // split points
             PointObjT* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
                 return point[split.dim] < split.value;
             });
             // build left subtree
-            Node* leftChild = BuildFairSplitTreeR(split.left, pointsBeg, splitTo, auxBeg);
-            if (leftChild) {
+            uint64_t leftChildIndex = BuildFairSplitTreeR(split.left, pointsBeg, splitTo, auxBeg);
+            if (leftChildIndex) {
+                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
                 splitNode->SetLeftChild(true);
             }
             // build right subtree
-            Node* rightChild = BuildFairSplitTreeR(split.right, splitTo, pointsEnd, auxBeg + (pointsBeg - splitTo));
-            if (rightChild) {
-                splitNode->SetRightChildIndex(rightChild - GetRoot());
+            uint64_t rightChildIndex = BuildFairSplitTreeR(split.right, splitTo, pointsEnd, auxBeg + (splitTo - pointsBeg));
+            if (rightChildIndex) {
+                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
+                splitNode->SetRightChildIndex(rightChildIndex);
             }
-            return splitNode;
+            return splitNodeIndex;
         }
     }
 
