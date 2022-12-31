@@ -48,6 +48,14 @@ struct DistObjCompare
     }
 };
 
+
+template<int Dim>
+using FindNNFunc = std::function<PointObj<double, Dim>(const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint)>;
+
+template<int Dim>
+using FindKNNFunc = std::function<std::vector<PointObj<double, Dim>>(const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint, int k)>;
+
+
 template<typename FloatT, int Dim, typename ObjData = Empty>
 PointObj<FloatT, Dim> LinearFindNearestNeighbor(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs, const Vec<FloatT, Dim>& queryPoint)
 {

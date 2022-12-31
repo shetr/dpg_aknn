@@ -189,6 +189,20 @@ void SortByDistanceToPoint(std::vector<Vec<FloatT, Dim>>& points, const Vec<Floa
     });
 }
 
+template<int Dim>
+using VecF = Vec<float, Dim>;
+template<int Dim>
+using BoxF = Box<float, Dim>;
+template<int Dim>
+using PointObjF = PointObj<float, Dim>;
+
+template<int Dim>
+using VecD = Vec<double, Dim>;
+template<int Dim>
+using BoxD = Box<double, Dim>;
+template<int Dim>
+using PointObjD = PointObj<double, Dim>;
+
 using VecF1 = Vec<float, 1>;
 using VecF2 = Vec<float, 2>;
 using VecF3 = Vec<float, 3>;
