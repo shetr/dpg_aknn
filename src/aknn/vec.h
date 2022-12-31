@@ -105,8 +105,8 @@ struct Box
     {
         FloatT dist = 0;
         for (int d = 0; d < Dim; ++d) {
-            dist += Square(std::max(0, min[d] - point[d]));
-            dist += Square(std::max(0, point[d] - max[d]));
+            dist += Square<FloatT>(std::max((FloatT)0, min[d] - point[d]));
+            dist += Square<FloatT>(std::max((FloatT)0, point[d] - max[d]));
         }
         return dist;
     }

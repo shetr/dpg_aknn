@@ -28,6 +28,13 @@ void TestFindKNN(const std::vector<KNNTestCase<Dim>>& testCases, FindKNNFunc<Dim
     }
 }
 
+/*
+template<int Dim>
+void TestFindNNWithBBDTree(const std::vector<NNTestCase<Dim>>& testCases, FindNNFunc<Dim> findNN)
+{
+
+}*/
+
 TEST(TestLinearFindNN, dim2) {
     TestFindNN<2>(TestData::Get().nnTestCases2d, LinearFindNearestNeighbor<double, 2>);
 }
@@ -36,6 +43,13 @@ TEST(TestLinearFindNN, dim3) {
 }
 TEST(TestLinearFindNN, dim4) {
     TestFindNN<4>(TestData::Get().nnTestCases4d, LinearFindNearestNeighbor<double, 4>);
+}
+
+TEST(TestFindNN, dim2_fairSplit_leafSize1) {
+    TestFindNN<2>(TestData::Get().nnTestCases2d, [](const std::vector<PointObj<double, 2>> objs, const Vec<double, 2>& queryPoint){
+        BBDTree<double, 2> tree = BBDTree<double, 2>::BuildFairSplitTree(1, objs);
+        return FindNearestNeighbor(tree, queryPoint);
+    });
 }
 
 TEST(TestLinearFindKNN, dim2) {

@@ -56,7 +56,7 @@ class InnerNode : public Node
 public:
     InnerNode(NodeType nodeType) : Node(nodeType) {}
 
-    bool HasLeftChild() {
+    bool HasLeftChild() const {
         return (bool)((_customData_nodeType >> LEFT_CHILD_POS) & LOW_LEFT_CHILD_MASK);
     }
     void SetLeftChild(bool exists) {
@@ -124,7 +124,7 @@ private:
 };
 
 template<typename FloatT, int Dim>
-int GetNodeOffset(NodeType nodeType)
+int64_t GetNodeOffset(NodeType nodeType)
 {
     static_assert(sizeof(SplitNode) == sizeof(Node));
     static_assert(sizeof(InnerNode) == sizeof(Node));
@@ -175,7 +175,7 @@ public:
     {
         BBDTree tree(leafMaxSize, objs);
         std::vector<PointObjT> aux = objs;
-        tree.BuildFairSplitTreeR(tree._bbox, _objs.data(), _objs.data() + _objs.size(), aux.data());
+        tree.BuildFairSplitTreeR(tree._bbox, tree._objs.data(), tree._objs.data() + tree._objs.size(), aux.data());
         tree.RemoveTrivialNodes();
         return tree;
     }
@@ -189,10 +189,14 @@ public:
     }
 
     Node* GetRoot() { return GetNode(0); }
-    Node* GetNode(int64_t index) { return &nodes[index]; }
+    Node* GetNode(int64_t index) { return &_nodes[index]; }
     
     const Node* GetRoot() const { return GetNode(0); }
-    const Node* GetNode(int64_t index) const { return &nodes[index]; }
+    const Node* GetNode(int64_t index) const { return &_nodes[index]; }
+    
+    const PointObjT* GetObj(int64_t index) const { return &_objs[index]; }
+
+    const Box<FloatT, Dim>& GetBBox() const { return _bbox; }
 
 private:
     std::vector<Node> _nodes;
