@@ -158,17 +158,68 @@ PointObj<FloatT, Dim, ObjData> FindNearestNeighbor(const BBDTree<FloatT, Dim, Ob
 }
 
 template<typename FloatT, int Dim, typename ObjData = Empty>
-std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon)
+std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue)
 {
-    std::vector<PointObj<FloatT, Dim, ObjData>> res;
+    DistObjCompare<FloatT, Dim, ObjData> distObjCompare;
+    aknnQueue.Init(k, distObjCompare);
 
-    return res;
+    std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>> nodeQueue;
+    DistNode<FloatT, Dim> rootNode{0, 0, tree.GetBBox()};
+    nodeQueue.push(rootNode);
+    while (!nodeQueue.empty())
+    {
+        DistNode<FloatT, Dim> distNode = nodeQueue.top();
+        const Node* node = tree.GetNode(distNode.nodeIdx);
+        nodeQueue.pop();
+
+        if (aknnQueue.IsFull() && distNode.dist > aknnQueue.GetFirst().dist / (1 + epsilon)) {
+            break;
+        }
+        
+        if (node->GetType() == NodeType::LEAF)
+        {
+            const LeafNode* leafNode = (const LeafNode*)node;
+            const PointObj<FloatT, Dim, ObjData>* leafBeg = tree.GetObj(leafNode->GetPointsBegIndex());
+            const PointObj<FloatT, Dim, ObjData>* leafEnd = tree.GetObj(leafNode->GetPointsEndIndex());
+            for (const PointObj<FloatT, Dim, ObjData>* objPtr = leafBeg; objPtr != leafEnd; ++objPtr) {
+                aknnQueue.Push(DistObj<FloatT, Dim, ObjData>({queryPoint.DistSquared(objPtr->point), *objPtr}));
+            }
+        }
+        else
+        {
+            // TODO: generalize for both nn and knn
+            const InnerNode* innerNode = (const InnerNode*)node;
+            Box leftBox = distNode.box;
+            Box rightBox = distNode.box;
+            if (node->GetType() == NodeType::SPLIT)
+            {
+                const SplitNode* splitNode = (const SplitNode*)node;
+                int splitDim = splitNode->GetSplitDim();
+                FloatT half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
+                leftBox.max[splitDim] = half;
+                rightBox.min[splitDim] = half;
+            }
+            else if (node->GetType() == NodeType::SHRINK)
+            {
+                const ShrinkNode<FloatT, Dim>* splitNode = (const ShrinkNode<FloatT, Dim>*)node;
+                rightBox = splitNode->GetShrinkBox();
+            }
+            FloatT distLeft = leftBox.SquaredDistance(queryPoint);
+            FloatT distRight = rightBox.SquaredDistance(queryPoint);
+            if (innerNode->HasLeftChild())
+                nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset<FloatT, Dim>(node->GetType()), leftBox});
+            if (innerNode->GetRightChildIndex() != 0)
+                nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
+        }
+    }
+
+    return DistObjsToPointObjs(aknnQueue.GetValues());
 }
 
 template<typename FloatT, int Dim, typename ObjData = Empty>
-std::vector<PointObj<FloatT, Dim, ObjData>> FindKNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k)
+std::vector<PointObj<FloatT, Dim, ObjData>> FindKNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& knnQueue)
 {
-    return FindKAproximateNearestNeighbors<FloatT, Dim, ObjData>(tree, queryPoint, k, 0);
+    return FindKAproximateNearestNeighbors<FloatT, Dim, ObjData>(tree, queryPoint, k, 0, knnQueue);
 }
 
 #endif // AKNN_SEARCH_H
