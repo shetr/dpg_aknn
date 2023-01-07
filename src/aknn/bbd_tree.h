@@ -182,7 +182,7 @@ public:
     static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<PointObjT>& objs)
     {
         BBDTree tree(leafMaxSize, objs);
-        std::vector<PointObjT> aux = objs;
+        std::vector<PointObjT> aux = objs; 
         // TODO: BuildMidpointSplitTreeR
         tree.RemoveTrivialNodes();
         return tree;
@@ -265,9 +265,133 @@ private:
         }
     }
 
+    uint64_t BuildMidpointSplitTreeR(const Box<FloatT, Dim>& box, PointObjT* pointsBeg, PointObjT* pointsEnd, PointObjT* auxBeg)
+    {
+        uint64_t size = pointsEnd - pointsBeg;
+        if (size == 0) {
+            // indicate that there is no child with 0 index (only root has 0 index and it can't be child of any node)
+            return 0;
+        } else if (size <= _leafMaxSize) {
+            return AddLeafNode(pointsBeg - _objs.data(), pointsEnd - _objs.data());
+        } else {
+            Box<FloatT, Dim> currentBox = box;
+            PointObjT* currentBeg = pointsBeg;
+            PointObjT* currentEnd = pointsEnd;
+            PointObjT* currentAuxBeg = auxBeg;
+            uint64_t currentSize = size;
+            for (int splitCount = 0; splitCount < Dim / 2; ++splitCount) {
+                BoxSplit<FloatT, Dim> split = currentBox.FairSplit();
+                PointObjT* splitTo = SplitPoints(currentBeg, currentEnd, currentAuxBeg, [&split](const Vec<FloatT, Dim>& point) {
+                    return point[split.dim] < split.value;
+                });
+                uint64_t leftSize = splitTo - currentBeg;
+                uint64_t rightSize = currentEnd - splitTo;
+                bool left = leftSize >= rightSize;
+                if (left) {
+                    currentBox = split.left;
+                    currentSize = leftSize;
+                    currentEnd = splitTo;
+                } else {
+                    currentBox = split.right;
+                    currentSize = rightSize;
+                    currentBeg = splitTo;
+                    currentAuxBeg = currentAuxBeg + leftSize;
+                }
+                if (currentSize <= _leafMaxSize) {
+                    break;
+                }
+            }
+            if (currentSize * 2 <= size) {
+                BoxSplit<FloatT, Dim> split = box.FairSplit();
+                uint64_t splitNodeIndex = AddSplitNode(split.dim);
+                // split points
+                PointObjT* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
+                    return point[split.dim] < split.value;
+                });
+                // build left subtree
+                uint64_t leftChildIndex = BuildMidpointSplitTreeR(split.left, pointsBeg, splitTo, auxBeg);
+                if (leftChildIndex) {
+                    SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
+                    splitNode->SetLeftChild(true);
+                }
+                // build right subtree
+                uint64_t rightChildIndex = BuildMidpointSplitTreeR(split.right, splitTo, pointsEnd, auxBeg + (splitTo - pointsBeg));
+                if (rightChildIndex) {
+                    SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
+                    splitNode->SetRightChildIndex(rightChildIndex);
+                }
+                return splitNodeIndex;
+            } else {
+                while (currentSize > (2 * size) / 3) {
+                    BoxSplit<FloatT, Dim> split = currentBox.FairSplit();
+                    PointObjT* splitTo = SplitPoints(currentBeg, currentEnd, currentAuxBeg, [&split](const Vec<FloatT, Dim>& point) {
+                        return point[split.dim] < split.value;
+                    });
+                    uint64_t leftSize = splitTo - currentBeg;
+                    uint64_t rightSize = currentEnd - splitTo;
+                    bool left = leftSize >= rightSize;
+                    if (left) {
+                        currentBox = split.left;
+                        currentSize = leftSize;
+                        currentEnd = splitTo;
+                    } else {
+                        currentBox = split.right;
+                        currentSize = rightSize;
+                        currentBeg = splitTo;
+                        currentAuxBeg = currentAuxBeg + leftSize;
+                    }
+                    if (currentSize <= _leafMaxSize) {
+                        break;
+                    }
+                }
+                PointObjT* insideBoxTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&currentBox](const Vec<FloatT, Dim>& point) {
+                    return currentBox.Includes(point);
+                });
+                uint64_t shrinkNodeIndex = AddShrinkNode(currentBox);
+                // build left subtree, inner box
+                uint64_t leftChildIndex = BuildMidpointSplitTreeR(currentBox, pointsBeg, insideBoxTo, auxBeg);
+                if (leftChildIndex) {
+                    InnerNode* node = (InnerNode*) &_nodes[shrinkNodeIndex];
+                    node->SetLeftChild(true);
+                }
+                // build right subtree, outer box
+                uint64_t rightChildIndex = BuildMidpointSplitTreeR(box, insideBoxTo, pointsEnd, auxBeg + (insideBoxTo - pointsBeg));
+                if (rightChildIndex) {
+                    InnerNode* node = (InnerNode*) &_nodes[shrinkNodeIndex];
+                    node->SetRightChildIndex(rightChildIndex);
+                }
+                return shrinkNodeIndex;
+            }
+            BoxSplit<FloatT, Dim> split = box.FairSplit();
+            uint64_t splitNodeIndex = AddSplitNode(split.dim);
+            // split points
+            PointObjT* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
+                return point[split.dim] < split.value;
+            });
+            // build left subtree
+            uint64_t leftChildIndex = BuildMidpointSplitTreeR(split.left, pointsBeg, splitTo, auxBeg);
+            if (leftChildIndex) {
+                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
+                splitNode->SetLeftChild(true);
+            }
+            // build right subtree
+            uint64_t rightChildIndex = BuildMidpointSplitTreeR(split.right, splitTo, pointsEnd, auxBeg + (splitTo - pointsBeg));
+            if (rightChildIndex) {
+                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
+                splitNode->SetRightChildIndex(rightChildIndex);
+            }
+            return splitNodeIndex;
+        }
+    }
+
     void RemoveTrivialNodes()
     {
+        std::vector<Node> reducedNodes;
+        reducedNodes.reserve(_nodes.size());
+    }
 
+    void RemoveTrivialNodesR(const Box<FloatT, Dim>& box, const Node* node, bool isParentTrivial, std::vector<Node>& reducedNodes)
+    {
     }
 };
 

@@ -111,6 +111,15 @@ struct Box
         return dist;
     }
 
+    bool Includes(const Vec<FloatT, Dim>& point) const
+    {
+        for (int d = 0; d < Dim; ++d) {
+            if (point[d] < min[d] || point[d] > max[d])
+                return false;
+        }
+        return true;
+    };
+
     void Include(const Vec<FloatT, Dim>& point)
     {
         for (int d = 0; d < Dim; ++d) {
