@@ -110,4 +110,30 @@ TestData::TestData() : gen(5)
         aknnTestCases4d.push_back(AKNNTestCase<4>({&line4d10, VecD4(5.6), 4, epsilon, VecD4(4.0)}));
     }
 
+    leafSizes = {1, 2, 5, 10};
+
+    int fixedQueuesCount = 3;
+    
+    fixedQueues2d.push_back(new LinearPriQueue<DistObj<double, 2>>());
+    fixedQueues2d.push_back(new HeapPriQueue<DistObj<double, 2>>());
+    fixedQueues2d.push_back(new StdPriQueue<DistObj<double, 2>>());
+
+    fixedQueues3d.push_back(new LinearPriQueue<DistObj<double, 3>>());
+    fixedQueues3d.push_back(new HeapPriQueue<DistObj<double, 3>>());
+    fixedQueues3d.push_back(new StdPriQueue<DistObj<double, 3>>());
+
+    fixedQueues4d.push_back(new LinearPriQueue<DistObj<double, 4>>());
+    fixedQueues4d.push_back(new HeapPriQueue<DistObj<double, 4>>());
+    fixedQueues4d.push_back(new StdPriQueue<DistObj<double, 4>>());
+
+    for (int q = 0; q < fixedQueuesCount; ++q)
+    {
+        for(int leafSize : leafSizes)
+        {
+            dataStructureConfigs2d.push_back({leafSize, fixedQueues2d[q]});
+            dataStructureConfigs3d.push_back({leafSize, fixedQueues3d[q]});
+            dataStructureConfigs4d.push_back({leafSize, fixedQueues4d[q]});
+        }
+    }
+
 }

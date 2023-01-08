@@ -138,16 +138,6 @@ TEST(TestFindNN, dim4_MidpointSplit_leafSize1) {
     TestFindNNWithBBDTree<4>(TestData::Get().nnTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, 1);
 }
 
-TEST(TestFindANN, dim2_MidpointSplit_leafSize1) {
-    TestFindANNWithBBDTree<2>(TestData::Get().annTestCases2d, BBDTree<double, 2>::BuildMidpointSplitTree, 1);
-}
-TEST(TestFindANN, dim3_MidpointSplit_leafSize1) {
-    TestFindANNWithBBDTree<3>(TestData::Get().annTestCases3d, BBDTree<double, 3>::BuildMidpointSplitTree, 1);
-}
-TEST(TestFindANN, dim4_MidpointSplit_leafSize1) {
-    TestFindANNWithBBDTree<4>(TestData::Get().annTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, 1);
-}
-
 TEST(TestLinearFindKNN, dim2) {
     TestFindKNN<2>(TestData::Get().knnTestCases2d, LinearFindKNearestNeighbors<double, 2>);
 }
@@ -179,12 +169,28 @@ TEST(TestFindKNN, dim4_MidpointSplit_leafSize1_linearPriQueue) {
 }
 
 
-TEST(TestFindAKNN, dim2_MidpointSplit_leafSize1_linearPriQueue) {
-    TestFindAKNNWithBBDTree<2>(TestData::Get().aknnTestCases2d, BBDTree<double, 2>::BuildMidpointSplitTree, 1, LinearPriQueue<DistObj<double, 2>>());
+TEST(TestFindANN, dim2_MidpointSplit) {
+    for(int leafSize : TestData::Get().leafSizes)
+        TestFindANNWithBBDTree<2>(TestData::Get().annTestCases2d, BBDTree<double, 2>::BuildMidpointSplitTree, leafSize);
 }
-TEST(TestFindAKNN, dim3_MidpointSplit_leafSize1_linearPriQueue) {
-    TestFindAKNNWithBBDTree<3>(TestData::Get().aknnTestCases3d, BBDTree<double, 3>::BuildMidpointSplitTree, 1, LinearPriQueue<DistObj<double, 3>>());
+TEST(TestFindANN, dim3_MidpointSplit) {
+    for(int leafSize : TestData::Get().leafSizes)
+        TestFindANNWithBBDTree<3>(TestData::Get().annTestCases3d, BBDTree<double, 3>::BuildMidpointSplitTree, leafSize);
 }
-TEST(TestFindAKNN, dim4_MidpointSplit_leafSize1_linearPriQueue) {
-    TestFindAKNNWithBBDTree<4>(TestData::Get().aknnTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, 1, LinearPriQueue<DistObj<double, 4>>());
+TEST(TestFindANN, dim4_MidpointSplit) {
+    for(int leafSize : TestData::Get().leafSizes)
+        TestFindANNWithBBDTree<4>(TestData::Get().annTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, leafSize);
+}
+
+TEST(TestFindAKNN, dim2_MidpointSplit) {
+    for (const DataStructureConfig<2>& cfg : TestData::Get().dataStructureConfigs2d)
+        TestFindAKNNWithBBDTree<2>(TestData::Get().aknnTestCases2d, BBDTree<double, 2>::BuildMidpointSplitTree, cfg.leafSize, *cfg.knnQueue);
+}
+TEST(TestFindAKNN, dim3_MidpointSplit) {
+    for (const DataStructureConfig<3>& cfg : TestData::Get().dataStructureConfigs3d)
+        TestFindAKNNWithBBDTree<3>(TestData::Get().aknnTestCases3d, BBDTree<double, 3>::BuildMidpointSplitTree, cfg.leafSize, *cfg.knnQueue);
+}
+TEST(TestFindAKNN, dim4_MidpointSplit) {
+    for (const DataStructureConfig<4>& cfg : TestData::Get().dataStructureConfigs4d)
+        TestFindAKNNWithBBDTree<4>(TestData::Get().aknnTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, cfg.leafSize, *cfg.knnQueue);
 }

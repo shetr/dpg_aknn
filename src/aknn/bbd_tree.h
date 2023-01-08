@@ -32,13 +32,13 @@ enum class NodeType
 #define LEFT_CHILD_MASK (LOW_LEFT_CHILD_MASK << LEFT_CHILD_POS)
 #define RIGHT_CHILD_MASK (LOW_RIGHT_CHILD_MASK << RIGHT_CHILD_POS)
 
-uint64_t GetBits(uint64_t storage, uint64_t bitPos, uint64_t lowMask) {
+/*uint64_t GetBits(uint64_t storage, uint64_t bitPos, uint64_t lowMask) {
     return (storage >> bitPos) & lowMask;
 }
 
 void SetBits(uint64_t& storage, uint64_t bits, uint64_t bitPos, uint64_t mask) {
     storage = (storage & (~mask)) | (bits << bitPos);
-}
+}*/
 
 class Node
 {

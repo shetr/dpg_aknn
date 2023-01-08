@@ -7,6 +7,7 @@
 #include <random>
 
 #include <aknn/vec.h>
+#include <aknn/search.h>
 
 template<int Dim>
 struct NNTestCase
@@ -42,6 +43,13 @@ struct AKNNTestCase
     int k;
     double epsilon;
     VecD<Dim> kth_nn;
+};
+
+template<int Dim>
+struct DataStructureConfig
+{
+    int leafSize;
+    FixedPriQueue<DistObj<double, Dim>>* knnQueue;
 };
 
 class TestData
@@ -80,6 +88,18 @@ public:
     std::vector<AKNNTestCase<2>> aknnTestCases2d;
     std::vector<AKNNTestCase<3>> aknnTestCases3d;
     std::vector<AKNNTestCase<4>> aknnTestCases4d;
+
+    // data structure configs
+
+    std::vector<DataStructureConfig<2>> dataStructureConfigs2d;
+    std::vector<DataStructureConfig<3>> dataStructureConfigs3d;
+    std::vector<DataStructureConfig<4>> dataStructureConfigs4d;
+
+    std::vector<int> leafSizes;
+
+    std::vector<FixedPriQueue<DistObj<double, 2>>*> fixedQueues2d;
+    std::vector<FixedPriQueue<DistObj<double, 3>>*> fixedQueues3d;
+    std::vector<FixedPriQueue<DistObj<double, 4>>*> fixedQueues4d;
 
     static const TestData& Get();
 
