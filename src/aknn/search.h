@@ -48,13 +48,6 @@ struct DistObjCompare
     }
 };
 
-
-template<int Dim>
-using FindNNFunc = std::function<PointObj<double, Dim>(const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint)>;
-
-template<int Dim>
-using FindKNNFunc = std::function<std::vector<PointObj<double, Dim>>(const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint, int k)>;
-
 template<typename FloatT, int Dim, typename ObjData = Empty>
 DistObj<FloatT, Dim, ObjData> LinearFindNearestNeighborInRangeWithDist(const PointObj<FloatT, Dim, ObjData>* objsBeg, const PointObj<FloatT, Dim, ObjData>* objsEnd, const Vec<FloatT, Dim>& queryPoint)
 {
@@ -174,7 +167,7 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
         const Node* node = tree.GetNode(distNode.nodeIdx);
         nodeQueue.pop();
 
-        if (aknnQueue.IsFull() && distNode.dist > aknnQueue.GetFirst().dist / (1 + epsilon)) {
+        if (aknnQueue.IsFull() && distNode.dist > aknnQueue.GetLast().dist / (1 + epsilon)) {
             break;
         }
         

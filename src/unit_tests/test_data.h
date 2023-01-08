@@ -17,12 +17,31 @@ struct NNTestCase
 };
 
 template<int Dim>
+struct ANNTestCase
+{
+    const std::vector<PointObjD<Dim>>* inputObjs;
+    VecD<Dim> queryPoint;
+    double epsilon;
+    VecD<Dim> nn;
+};
+
+template<int Dim>
 struct KNNTestCase
 {
     const std::vector<PointObjD<Dim>>* inputObjs;
     VecD<Dim> queryPoint;
     int k;
     std::vector<VecD<Dim>> expectedRes;
+};
+
+template<int Dim>
+struct AKNNTestCase
+{
+    const std::vector<PointObjD<Dim>>* inputObjs;
+    VecD<Dim> queryPoint;
+    int k;
+    double epsilon;
+    VecD<Dim> kth_nn;
 };
 
 class TestData
@@ -50,9 +69,17 @@ public:
     std::vector<NNTestCase<3>> nnTestCases3d;
     std::vector<NNTestCase<4>> nnTestCases4d;
     
+    std::vector<ANNTestCase<2>> annTestCases2d;
+    std::vector<ANNTestCase<3>> annTestCases3d;
+    std::vector<ANNTestCase<4>> annTestCases4d;
+    
     std::vector<KNNTestCase<2>> knnTestCases2d;
     std::vector<KNNTestCase<3>> knnTestCases3d;
     std::vector<KNNTestCase<4>> knnTestCases4d;
+    
+    std::vector<AKNNTestCase<2>> aknnTestCases2d;
+    std::vector<AKNNTestCase<3>> aknnTestCases3d;
+    std::vector<AKNNTestCase<4>> aknnTestCases4d;
 
     static const TestData& Get();
 

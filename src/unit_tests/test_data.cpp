@@ -73,4 +73,41 @@ TestData::TestData() : gen(5)
         KNNTestCase<4>({&line4d10, VecD4(5.1), 3, { VecD4(5.0), VecD4(6.0), VecD4(4.0) }}),
         KNNTestCase<4>({&line4d10, VecD4(5.6), 4, { VecD4(6.0), VecD4(5.0), VecD4(7.0), VecD4(4.0) }})
     };
+
+    for (int e = 1; e <= 4; ++e)
+    {
+        double epsilon = e;
+
+        annTestCases2d.push_back(ANNTestCase<2>({&line2d10, VecD2(5.1), epsilon, VecD2(5.0)}));
+        annTestCases2d.push_back(ANNTestCase<2>({&grid2d10, VecD2({5.1, 3.9}), epsilon, VecD2({5.0, 4.0})}));
+        annTestCases2d.push_back(ANNTestCase<2>({&line2d10, VecD2(100.0), epsilon, VecD2(10.0)}));
+        annTestCases2d.push_back(ANNTestCase<2>({&grid2d10, VecD2(100.0), epsilon, VecD2(10.0)}));
+
+        annTestCases3d.push_back(ANNTestCase<3>({&line3d10, VecD3(5.1), epsilon, VecD3(5.0)}));
+        annTestCases3d.push_back(ANNTestCase<3>({&grid3d10, VecD3({5.1, 3.9, 7.6}), epsilon, VecD3({5.0, 4.0, 8.0})}));
+        annTestCases3d.push_back(ANNTestCase<3>({&line3d10, VecD3(100.0), epsilon, VecD3(10.0)}));
+        annTestCases3d.push_back(ANNTestCase<3>({&grid3d10, VecD3(100.0), epsilon, VecD3(10.0)}));
+
+        annTestCases4d.push_back(ANNTestCase<4>({&line4d10, VecD4(5.1), epsilon, VecD4(5.0)}));
+        annTestCases4d.push_back(ANNTestCase<4>({&grid4d10, VecD4({5.1, 3.9, 7.6, 6.3}), epsilon, VecD4({5.0, 4.0, 8.0, 6.0})}));
+        annTestCases4d.push_back(ANNTestCase<4>({&line4d10, VecD4(100.0), epsilon, VecD4(10.0)}));
+        annTestCases4d.push_back(ANNTestCase<4>({&grid4d10, VecD4(100.0), epsilon, VecD4(10.0)}));
+        
+
+        aknnTestCases2d.push_back(AKNNTestCase<2>({&line2d10, VecD2(5.0), 1, epsilon, VecD2(5.0)}));
+        aknnTestCases2d.push_back(AKNNTestCase<2>({&line2d10, VecD2(5.4), 2, epsilon, VecD2(6.0)}));
+        aknnTestCases2d.push_back(AKNNTestCase<2>({&line2d10, VecD2(5.1), 3, epsilon, VecD2(4.0)}));
+        aknnTestCases2d.push_back(AKNNTestCase<2>({&line2d10, VecD2(5.6), 4, epsilon, VecD2(4.0)}));
+        
+        aknnTestCases3d.push_back(AKNNTestCase<3>({&line3d10, VecD3(5.0), 1, epsilon, VecD3(5.0)}));
+        aknnTestCases3d.push_back(AKNNTestCase<3>({&line3d10, VecD3(5.4), 2, epsilon, VecD3(6.0)}));
+        aknnTestCases3d.push_back(AKNNTestCase<3>({&line3d10, VecD3(5.1), 3, epsilon, VecD3(4.0)}));
+        aknnTestCases3d.push_back(AKNNTestCase<3>({&line3d10, VecD3(5.6), 4, epsilon, VecD3(4.0)}));
+        
+        aknnTestCases4d.push_back(AKNNTestCase<4>({&line4d10, VecD4(5.0), 1, epsilon, VecD4(5.0)}));
+        aknnTestCases4d.push_back(AKNNTestCase<4>({&line4d10, VecD4(5.4), 2, epsilon, VecD4(6.0)}));
+        aknnTestCases4d.push_back(AKNNTestCase<4>({&line4d10, VecD4(5.1), 3, epsilon, VecD4(4.0)}));
+        aknnTestCases4d.push_back(AKNNTestCase<4>({&line4d10, VecD4(5.6), 4, epsilon, VecD4(4.0)}));
+    }
+
 }
