@@ -46,6 +46,24 @@ void TestFindKNNWithFairSplitTree(const std::vector<KNNTestCase<Dim>>& testCases
     });
 }
 
+template<int Dim>
+void TestFindNNWithMidpointSplitTree(const std::vector<NNTestCase<Dim>>& testCases, int leafSize)
+{
+    TestFindNN<Dim>(testCases, [&](const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint){
+        BBDTree<double, Dim> tree = BBDTree<double, Dim>::BuildMidpointSplitTree(leafSize, objs);
+        return FindNearestNeighbor(tree, queryPoint);
+    });
+}
+
+template<int Dim>
+void TestFindKNNWithMidpointSplitTree(const std::vector<KNNTestCase<Dim>>& testCases, int leafSize, FixedPriQueue<DistObj<double, Dim>>& knnQueue)
+{
+    TestFindKNN<Dim>(testCases, [&](const std::vector<PointObj<double, Dim>> objs, const Vec<double, Dim>& queryPoint, int k){
+        BBDTree<double, Dim> tree = BBDTree<double, Dim>::BuildMidpointSplitTree(leafSize, objs);
+        return FindKNearestNeighbors(tree, queryPoint, k, knnQueue);
+    });
+}
+
 TEST(TestLinearFindNN, dim2) {
     TestFindNN<2>(TestData::Get().nnTestCases2d, LinearFindNearestNeighbor<double, 2>);
 }
@@ -56,14 +74,24 @@ TEST(TestLinearFindNN, dim4) {
     TestFindNN<4>(TestData::Get().nnTestCases4d, LinearFindNearestNeighbor<double, 4>);
 }
 
-TEST(TestFindNN, dim2_fairSplit_leafSize1) {
+TEST(TestFindNN, dim2_FairSplit_leafSize1) {
     TestFindNNWithFairSplitTree<2>(TestData::Get().nnTestCases2d, 1);
 }
-TEST(TestFindNN, dim3_fairSplit_leafSize1) {
+TEST(TestFindNN, dim3_FairSplit_leafSize1) {
     TestFindNNWithFairSplitTree<3>(TestData::Get().nnTestCases3d, 1);
 }
-TEST(TestFindNN, dim4_fairSplit_leafSize1) {
+TEST(TestFindNN, dim4_FairSplit_leafSize1) {
     TestFindNNWithFairSplitTree<4>(TestData::Get().nnTestCases4d, 1);
+}
+
+TEST(TestFindNN, dim2_MidpointSplit_leafSize1) {
+    TestFindNNWithMidpointSplitTree<2>(TestData::Get().nnTestCases2d, 1);
+}
+TEST(TestFindNN, dim3_MidpointSplit_leafSize1) {
+    TestFindNNWithMidpointSplitTree<3>(TestData::Get().nnTestCases3d, 1);
+}
+TEST(TestFindNN, dim4_MidpointSplit_leafSize1) {
+    TestFindNNWithMidpointSplitTree<4>(TestData::Get().nnTestCases4d, 1);
 }
 
 TEST(TestLinearFindKNN, dim2) {
@@ -76,12 +104,22 @@ TEST(TestLinearFindKNN, dim4) {
     TestFindKNN<4>(TestData::Get().knnTestCases4d, LinearFindKNearestNeighbors<double, 4>);
 }
 
-TEST(TestFindKNN, dim2_fairSplit_leafSize1_linearPriQueue) {
+TEST(TestFindKNN, dim2_FairSplit_leafSize1_linearPriQueue) {
     TestFindKNNWithFairSplitTree<2>(TestData::Get().knnTestCases2d, 1, LinearPriQueue<DistObj<double, 2>>());
 }
-TEST(TestFindKNN, dim3_fairSplit_leafSize1_linearPriQueue) {
+TEST(TestFindKNN, dim3_FairSplit_leafSize1_linearPriQueue) {
     TestFindKNNWithFairSplitTree<3>(TestData::Get().knnTestCases3d, 1, LinearPriQueue<DistObj<double, 3>>());
 }
-TEST(TestFindKNN, dim4_fairSplit_leafSize1_linearPriQueue) {
+TEST(TestFindKNN, dim4_FairSplit_leafSize1_linearPriQueue) {
     TestFindKNNWithFairSplitTree<4>(TestData::Get().knnTestCases4d, 1, LinearPriQueue<DistObj<double, 4>>());
+}
+
+TEST(TestFindKNN, dim2_MidpointSplit_leafSize1_linearPriQueue) {
+    TestFindKNNWithMidpointSplitTree<2>(TestData::Get().knnTestCases2d, 1, LinearPriQueue<DistObj<double, 2>>());
+}
+TEST(TestFindKNN, dim3_MidpointSplit_leafSize1_linearPriQueue) {
+    TestFindKNNWithMidpointSplitTree<3>(TestData::Get().knnTestCases3d, 1, LinearPriQueue<DistObj<double, 3>>());
+}
+TEST(TestFindKNN, dim4_MidpointSplit_leafSize1_linearPriQueue) {
+    TestFindKNNWithMidpointSplitTree<4>(TestData::Get().knnTestCases4d, 1, LinearPriQueue<DistObj<double, 4>>());
 }

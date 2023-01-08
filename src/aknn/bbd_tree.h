@@ -182,12 +182,13 @@ public:
     static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<PointObjT>& objs)
     {
         BBDTree tree(leafMaxSize, objs);
-        std::vector<PointObjT> aux = objs; 
-        // TODO: BuildMidpointSplitTreeR
+        std::vector<PointObjT> aux = objs;
+        tree.BuildMidpointSplitTreeR(tree._bbox, tree._objs.data(), tree._objs.data() + tree._objs.size(), aux.data());
         tree.RemoveTrivialNodes();
         return tree;
     }
 
+    // TODO: handle edge case when there are 0 nodes (return nullptr)
     Node* GetRoot() { return GetNode(0); }
     Node* GetNode(uint64_t index) { return &_nodes[index]; }
     
@@ -217,7 +218,7 @@ private:
     uint64_t AddShrinkNode(const Box<FloatT, Dim>& shrinkBox) {
         static_assert(sizeof(ShrinkNode<FloatT, Dim>) % sizeof(Node) == 0);
         uint64_t index = (int64_t)_nodes.size();
-        for(int i = 0; i < GetNodeOffset(NodeType::SHRINK); ++i) {
+        for(int i = 0; i < GetNodeOffset<FloatT, Dim>(NodeType::SHRINK); ++i) {
             _nodes.push_back(Node());
         }
         ShrinkNode<FloatT, Dim>* shrinkNode = (ShrinkNode<FloatT, Dim>*) &_nodes[index];
@@ -362,25 +363,6 @@ private:
                 }
                 return shrinkNodeIndex;
             }
-            BoxSplit<FloatT, Dim> split = box.FairSplit();
-            uint64_t splitNodeIndex = AddSplitNode(split.dim);
-            // split points
-            PointObjT* splitTo = SplitPoints(pointsBeg, pointsEnd, auxBeg, [&split](const Vec<FloatT, Dim>& point) {
-                return point[split.dim] < split.value;
-            });
-            // build left subtree
-            uint64_t leftChildIndex = BuildMidpointSplitTreeR(split.left, pointsBeg, splitTo, auxBeg);
-            if (leftChildIndex) {
-                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
-                splitNode->SetLeftChild(true);
-            }
-            // build right subtree
-            uint64_t rightChildIndex = BuildMidpointSplitTreeR(split.right, splitTo, pointsEnd, auxBeg + (splitTo - pointsBeg));
-            if (rightChildIndex) {
-                SplitNode* splitNode = (SplitNode*) &_nodes[splitNodeIndex];
-                splitNode->SetRightChildIndex(rightChildIndex);
-            }
-            return splitNodeIndex;
         }
     }
 

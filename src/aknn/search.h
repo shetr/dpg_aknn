@@ -97,6 +97,7 @@ std::vector<PointObj<FloatT, Dim>> LinearFindKNearestNeighbors(const std::vector
 template<typename FloatT, int Dim, typename ObjData = Empty>
 PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
 {
+    // TODO: handle edge case when there are 0 nodes
     PointObj<FloatT, Dim, ObjData> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
     std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>> nodeQueue;
@@ -138,8 +139,8 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
             }
             else if (node->GetType() == NodeType::SHRINK)
             {
-                const ShrinkNode<FloatT, Dim>* splitNode = (const ShrinkNode<FloatT, Dim>*)node;
-                rightBox = splitNode->GetShrinkBox();
+                const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
+                leftBox = shrinkNode->GetShrinkBox();
             }
             FloatT distLeft = leftBox.SquaredDistance(queryPoint);
             FloatT distRight = rightBox.SquaredDistance(queryPoint);
@@ -160,6 +161,7 @@ PointObj<FloatT, Dim, ObjData> FindNearestNeighbor(const BBDTree<FloatT, Dim, Ob
 template<typename FloatT, int Dim, typename ObjData = Empty>
 std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue)
 {
+    // TODO: handle edge case when there are 0 nodes
     DistObjCompare<FloatT, Dim, ObjData> distObjCompare;
     aknnQueue.Init(k, distObjCompare);
 
@@ -201,8 +203,8 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
             }
             else if (node->GetType() == NodeType::SHRINK)
             {
-                const ShrinkNode<FloatT, Dim>* splitNode = (const ShrinkNode<FloatT, Dim>*)node;
-                rightBox = splitNode->GetShrinkBox();
+                const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
+                leftBox = shrinkNode->GetShrinkBox();
             }
             FloatT distLeft = leftBox.SquaredDistance(queryPoint);
             FloatT distRight = rightBox.SquaredDistance(queryPoint);
