@@ -97,14 +97,26 @@ public:
 
     std::vector<int> leafSizes;
 
-    std::vector<FixedPriQueue<DistObj<double, 2>>*> fixedQueues2d;
-    std::vector<FixedPriQueue<DistObj<double, 3>>*> fixedQueues3d;
-    std::vector<FixedPriQueue<DistObj<double, 4>>*> fixedQueues4d;
+    std::vector<std::unique_ptr<FixedPriQueue<DistObj<double, 2>>>> fixedQueues2d;
+    std::vector<std::unique_ptr<FixedPriQueue<DistObj<double, 3>>>> fixedQueues3d;
+    std::vector<std::unique_ptr<FixedPriQueue<DistObj<double, 4>>>> fixedQueues4d;
 
     static const TestData& Get();
 
+    template<int Dim>
+    VecD<Dim> GenRandVec() const
+    {
+        VecD<Dim> res;
+        for (int d = 0; d < Dim; ++d) {
+            res[d] = distr(eng);
+        }
+        return res;
+    }
+
 private:
     std::mt19937 gen;
+    mutable std::default_random_engine eng;
+    std::uniform_real_distribution<double> distr;
 
     static std::unique_ptr<TestData> s_testData;
     static std::mutex s_testDataMutex;

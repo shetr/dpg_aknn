@@ -76,7 +76,7 @@ PointObj<FloatT, Dim, ObjData> LinearFindNearestNeighbor(const std::vector<Point
 }
 
 template<typename FloatT, int Dim, typename ObjData = Empty>
-std::vector<PointObj<FloatT, Dim>> LinearFindKNearestNeighbors(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs, const Vec<FloatT, Dim>& queryPoint, int k)
+std::vector<PointObj<FloatT, Dim, ObjData>> LinearFindKNearestNeighbors(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs, const Vec<FloatT, Dim>& queryPoint, int k)
 {
     LinearPriQueue<DistObj<FloatT, Dim, ObjData>> priQueue;
     priQueue.Init(k, DistObjCompare<FloatT, Dim, ObjData>());

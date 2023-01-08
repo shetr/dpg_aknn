@@ -16,7 +16,7 @@ const TestData& TestData::Get()
 }
 
 
-TestData::TestData() : gen(5)
+TestData::TestData() : gen(5), eng(gen), distr(0.0, 1.0)
 {
     basicInts = {9, 2, 5, 10, 3, 1, 7, 8, 4, 6};
 
@@ -114,25 +114,25 @@ TestData::TestData() : gen(5)
 
     int fixedQueuesCount = 3;
     
-    fixedQueues2d.push_back(new LinearPriQueue<DistObj<double, 2>>());
-    fixedQueues2d.push_back(new HeapPriQueue<DistObj<double, 2>>());
-    fixedQueues2d.push_back(new StdPriQueue<DistObj<double, 2>>());
+    fixedQueues2d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 2>>>(new LinearPriQueue<DistObj<double, 2>>()));
+    fixedQueues2d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 2>>>(new HeapPriQueue<DistObj<double, 2>>()));
+    fixedQueues2d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 2>>>(new StdPriQueue<DistObj<double, 2>>()));
 
-    fixedQueues3d.push_back(new LinearPriQueue<DistObj<double, 3>>());
-    fixedQueues3d.push_back(new HeapPriQueue<DistObj<double, 3>>());
-    fixedQueues3d.push_back(new StdPriQueue<DistObj<double, 3>>());
+    fixedQueues3d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 3>>>(new LinearPriQueue<DistObj<double, 3>>()));
+    fixedQueues3d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 3>>>(new HeapPriQueue<DistObj<double, 3>>()));
+    fixedQueues3d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 3>>>(new StdPriQueue<DistObj<double, 3>>()));
 
-    fixedQueues4d.push_back(new LinearPriQueue<DistObj<double, 4>>());
-    fixedQueues4d.push_back(new HeapPriQueue<DistObj<double, 4>>());
-    fixedQueues4d.push_back(new StdPriQueue<DistObj<double, 4>>());
+    fixedQueues4d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 4>>>(new LinearPriQueue<DistObj<double, 4>>()));
+    fixedQueues4d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 4>>>(new HeapPriQueue<DistObj<double, 4>>()));
+    fixedQueues4d.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, 4>>>(new StdPriQueue<DistObj<double, 4>>()));
 
     for (int q = 0; q < fixedQueuesCount; ++q)
     {
         for(int leafSize : leafSizes)
         {
-            dataStructureConfigs2d.push_back({leafSize, fixedQueues2d[q]});
-            dataStructureConfigs3d.push_back({leafSize, fixedQueues3d[q]});
-            dataStructureConfigs4d.push_back({leafSize, fixedQueues4d[q]});
+            dataStructureConfigs2d.push_back({leafSize, fixedQueues2d[q].get()});
+            dataStructureConfigs3d.push_back({leafSize, fixedQueues3d[q].get()});
+            dataStructureConfigs4d.push_back({leafSize, fixedQueues4d[q].get()});
         }
     }
 

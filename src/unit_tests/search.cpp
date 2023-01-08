@@ -108,6 +108,56 @@ void TestFindAKNNWithBBDTree(const std::vector<AKNNTestCase<Dim>>& testCases, Bu
     });
 }
 
+template<int Dim>
+void RandomTestsFindAKNNWithBBDTree()
+{
+    int datasetsCount = 4;
+    int queryCount = 10;
+    int datasetSize = 1000;
+    std::vector<int> leafSizes = {1, 2, 10, 100};
+    std::vector<int> ks = {1, 2, 5, 10, 25, 100};
+    std::vector<double> epsilons = {0, 1, 2, 3, 5, 8, 10};
+    std::vector<std::unique_ptr<FixedPriQueue<DistObj<double, Dim>>>> fixedQueues;
+    fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, Dim>>>(new LinearPriQueue<DistObj<double, Dim>>()));
+    fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, Dim>>>(new HeapPriQueue<DistObj<double, Dim>>()));
+    fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<double, Dim>>>(new StdPriQueue<DistObj<double, Dim>>()));
+
+    std::vector<PointObjD<Dim>> dataset;
+    dataset.resize(datasetSize, PointObjD<Dim>());
+    for (int datasetNum = 0; datasetNum < datasetsCount; ++datasetNum)
+    {
+        for (int i = 0; i < datasetSize; ++i) {
+            dataset[i] = PointObjD<Dim>({TestData::Get().GenRandVec<Dim>()});
+        }
+
+        for (int leafSize : leafSizes)
+        {
+            BBDTree<double, Dim> tree = BBDTree<double, Dim>::BuildMidpointSplitTree(leafSize, dataset);
+            for (int query = 0; query < queryCount; ++query) {
+                VecD<Dim> queryPoint = TestData::Get().GenRandVec<Dim>();
+                for (int k : ks) {
+                    std::vector<Vec<double, Dim>> knn = ObjsToVec(LinearFindKNearestNeighbors<double, Dim>(dataset, queryPoint, k));
+                    SortByDistanceToPoint(knn, queryPoint);
+                    double lastKnnDist = queryPoint.DistSquared(knn.back());
+                    for (double epsilon : epsilons) {
+                        double lastKnnDistEpsilon = (1 + epsilon) * lastKnnDist;
+                        for (int queue = 0; queue < (int)fixedQueues.size(); ++queue) {
+                            std::vector<Vec<double, Dim>> aknn = ObjsToVec(FindKAproximateNearestNeighbors(tree, queryPoint, k, epsilon, *fixedQueues[queue]));
+                            EXPECT_EQ(k, aknn.size()) << "Incorrect size: d" << datasetNum << ", l" << leafSize << ", p" << queryPoint << ", k" << k << ", e" << epsilon << ", q" << queue;
+                            for (int v = 0; v < (int)aknn.size(); ++v) {
+                                double vDist = queryPoint.DistSquared(aknn[v]);
+                                EXPECT_LE(vDist, lastKnnDistEpsilon) << "Incorrect result: d" << datasetNum << ", l" << leafSize << ", p" << queryPoint << ", k" << k << ", e" << epsilon << ", q" << queue << ", v" << v;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+
+    }
+}
+
 TEST(TestLinearFindNN, dim2) {
     TestFindNN<2>(TestData::Get().nnTestCases2d, LinearFindNearestNeighbor<double, 2>);
 }
@@ -193,4 +243,14 @@ TEST(TestFindAKNN, dim3_MidpointSplit) {
 TEST(TestFindAKNN, dim4_MidpointSplit) {
     for (const DataStructureConfig<4>& cfg : TestData::Get().dataStructureConfigs4d)
         TestFindAKNNWithBBDTree<4>(TestData::Get().aknnTestCases4d, BBDTree<double, 4>::BuildMidpointSplitTree, cfg.leafSize, *cfg.knnQueue);
+}
+
+TEST(RandomTestFindAKNN, dim2) {
+    RandomTestsFindAKNNWithBBDTree<2>();
+}
+TEST(RandomTestFindAKNN, dim3) {
+    RandomTestsFindAKNNWithBBDTree<3>();
+}
+TEST(RandomTestFindAKNN, dim4) {
+    RandomTestsFindAKNNWithBBDTree<4>();
 }
