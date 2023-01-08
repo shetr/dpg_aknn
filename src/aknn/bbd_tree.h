@@ -175,6 +175,32 @@ struct SplitState
     PointObj<FloatT, Dim, ObjData>* auxEnd() { return auxBeg + size(); };
 };
 
+struct BBDTreeStats
+{
+    int innerNodeCount;
+    int leafNodeCount;
+    int splitNodeCount;
+    int shrinkNodeCount;
+    int nullChildCount;
+    int maxDepth;
+    double avgDepth;
+    double avgLeafSize;
+    // in bytes
+    int memoryConsumption;
+};
+
+struct BBDTreeIntermediateStats
+{
+    int innerNodeCount = 0;
+    int leafNodeCount = 0;
+    int splitNodeCount = 0;
+    int shrinkNodeCount = 0;
+    int nullCount = 0;
+    int maxDepth = 0;
+    int depthSum = 0;
+    int leafSizesSum = 0;
+};
+
 template<typename FloatT, int Dim, typename ObjData = Empty>
 class BBDTree
 {
@@ -211,6 +237,25 @@ public:
 
     const Box<FloatT, Dim>& GetBBox() const { return _bbox; }
 
+    int GetLeafSize(LeafNode* leafNode) const {
+        return tree.GetObj(leafNode->GetPointsEndIndex()) - tree.GetObj(leafNode->GetPointsBegIndex());
+    }
+
+    BBDTreeStats GetStats() const {
+        BBDTreeIntermediateStats interStats;
+        GetStatsR(interStats, 0, 0);
+        BBDTreeStats stats;
+        stats.innerNodeCount = interStats.innerNodeCount;
+        stats.leafNodeCount = interStats.leafNodeCount;
+        stats.splitNodeCount = interStats.splitNodeCount;
+        stats.shrinkNodeCount = interStats.shrinkNodeCount;
+        stats.nullChildCount = interStats.nullChildCount;
+        stats.maxDepth = interStats.maxDepth;
+        stats.avgDepth = (double)interStats.depthSum / (double)interStats.leafNodeCount;
+        stats.avgLeafSize = (double)interStats.leafSizesSum / (double)interStats.leafNodeCount;
+        stats.memoryConsumption = sizeof(Node) * _nodes.size();
+        return stats;
+    }
 private:
     std::vector<Node> _nodes;
     std::vector<PointObjT> _objs;
@@ -365,6 +410,40 @@ private:
 
     void RemoveTrivialNodesR(const Box<FloatT, Dim>& box, const Node* node, bool isParentTrivial, std::vector<Node>& reducedNodes)
     {
+    }
+
+    void GetStatsR(BBDTreeIntermediateStats& stats, uint64_t nodeIndex, int depth) const {
+        const Node* node = GetNode(nodeIndex);
+
+        if (node->GetType() == NodeType::LEAF)
+        {
+            const LeafNode* leafNode = (const LeafNode*)node;
+            stats.leafSizesSum += GetLeafSize(leafNode);
+            ++stats.leafNodeCount;
+            stats.depthSum += depth;
+            stats.maxDepth = std::max(stats.maxDepth, depth);
+        }
+        else
+        {
+            const InnerNode* innerNode = (const InnerNode*)node;
+            ++stats.innerNodeCount;
+            if (node->GetType() == NodeType::SPLIT) {
+                ++stats.splitNodeCount;
+            }
+            else if (node->GetType() == NodeType::SHRINK) {
+                ++stats.shrinkNodeCount;
+            }
+
+            if (innerNode->HasLeftChild())
+                GetStatsR(stats, nodeIndex + GetNodeOffset<FloatT, Dim>(node->GetType()), depth + 1);
+            else
+                ++stats.nullCount;
+            
+            if (innerNode->GetRightChildIndex() != 0)
+                GetStatsR(stats, innerNode->GetRightChildIndex(), depth + 1);
+            else
+                ++stats.nullCount;
+        }
     }
 };
 
