@@ -128,7 +128,7 @@ struct Box
         }
     }
 
-    BoxSplit<FloatT, Dim> FairSplit() const {
+    BoxSplit<FloatT, Dim> Split() const {
         int splitDim = 0;
         FloatT maxSize = 0;
         for (int d = 0; d < Dim; ++d) {
