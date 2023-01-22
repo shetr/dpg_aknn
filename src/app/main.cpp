@@ -29,6 +29,8 @@
 
 // asi si sem pridam i python cast na generovani grafu apod
 
+// tri prikazy: measure, stats, visualize
+
 #include <aknn/vec.h>
 #include <aknn/bbd_tree.h>
 #include <aknn/search.h>
