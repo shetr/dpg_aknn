@@ -17,7 +17,7 @@ target_include_directories(aknn PUBLIC ${INCLUDE_DIR})
 
 file(GLOB_RECURSE APP_SRC "src/app/*.cpp" "src/app/*.h")
 add_executable(app ${APP_SRC})
-target_include_directories(app PUBLIC ${INCLUDE_DIR})
+target_include_directories(app PUBLIC ${INCLUDE_DIR} "src/extern/argumentum/include")
 target_link_libraries(app PUBLIC aknn)
 
 file(GLOB_RECURSE UNIT_TESTS_SRC "src/unit_tests/*.cpp" "src/unit_tests/*.h")
