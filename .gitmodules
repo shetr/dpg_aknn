@@ -1,3 +1,6 @@
 [submodule "src/extern/googletest"]
 	path = src/extern/googletest
 	url = https://github.com/google/googletest.git
+[submodule "src/extern/argumentum"]
+	path = src/extern/argumentum
+	url = https://github.com/mmahnic/argumentum.git

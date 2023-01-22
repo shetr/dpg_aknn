@@ -29,33 +29,11 @@
 
 // asi si sem pridam i python cast na generovani grafu apod
 
-// udelat kod flexibilni na zmenu fronty, dimenze a epsilon
-
-// dotazy na Havrana:
-// double nebo float?
-// ruzne typy prioritnich front jsou mysleny u samotneho pruchodu pri vyhledavani nebo i u fronty kandidatu knn?
-// lze na tohle pouzit to glv?
-
 #include <aknn/vec.h>
 #include <aknn/bbd_tree.h>
 #include <aknn/search.h>
 
-void BuildBBDTree()
-{
-
-}
-
-void CreateFairSplitNode()
-{
-
-}
-
-void CreateShrinkNode()
-{
-
-}
-
-int main()
+int main(int argc, char** argv)
 {
     std::cout << "hi" << std::endl;
 
