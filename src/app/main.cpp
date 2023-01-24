@@ -37,11 +37,13 @@
 
 #include <argumentum/argparse-h.h>
 
+#include <memory>
+
 class GlobalOptions : public argumentum::Options
 {
 public:
    int logLevel = 0;
-   void add_parameters( ParameterConfig& params ) override
+   void add_parameters(argumentum::ParameterConfig& params) override
    {
       params.add_parameter( logLevel, "--loglevel" ).nargs( 1 );
    }
@@ -49,28 +51,21 @@ public:
 
 class AccumulatorOptions : public argumentum::CommandOptions
 {
-   std::shared_ptr<GloblaOptions> mpGlobal;
+   std::shared_ptr<GlobalOptions> mpGlobal;
 public:
-   AccumulatorOptions( std::string_view name, std::shared_ptr<GloblaOptions> pGlobal )
+   AccumulatorOptions( std::string_view name, std::shared_ptr<GlobalOptions> pGlobal )
       : CommandOptions( name )
       , mpGlobal( pGlobal )
   {}
 
-  void execute( const ParseResults& res )
+  void execute(const argumentum::ParseResult& res)
   {
-     if ( mpGlobal && mpGlobal->logLevel > 0 )
-       cout << "Accumulating " << numbers.size() << " numbers\n";
-
-     auto acc = accumulate(
-        numbers.begin(), numbers.end(), operation.second, operation.first );
-     cout << acc << "\n";
+     
   }
 };
 
 int main(int argc, char** argv)
 {
-    std::cout << "hi" << std::endl;
-
     std::vector<PointObj<float, 2>> points;
     points.push_back({Vec<float, 2>({0, 0})});
     points.push_back({Vec<float, 2>({1, 0})});
