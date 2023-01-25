@@ -100,8 +100,8 @@ public:
          // build
          {
             high_resolution_clock::time_point start = high_resolution_clock::now();
-            tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
-            //tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+            //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
+            tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
             double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
             std::cout << "      build time: " << totalDuration << " s" << std::endl;
          }
@@ -140,8 +140,8 @@ public:
       {
          std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
          BBDTree<float, 3> tree;
-         tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
-         //tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+         //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
+         tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
          BBDTreeStats stats = tree.GetStats();
 
          int splitNodeSize = sizeof(SplitNode);
@@ -177,20 +177,25 @@ public:
 
    void WritePoint(FILE* file, VecF3 point)
    {
-      fprintf(file, "point %f %f %f", point[0], point[1], point[2]);
+      fprintf(file, "point %f %f %f\n", point[0], point[1], point[2]);
    }
 
    void WriteBox(FILE* file, BoxF3 box)
    {
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.max[2]);
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.max[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.max[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.min[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.min[0], box.min[1], box.max[2]);
       
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], box.max[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], box.max[0], box.min[1], box.max[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], box.max[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], box.max[0], box.min[1], box.max[2]);
 
-      
-      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.max[0], box.min[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], box.max[0], box.min[1], box.max[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], box.max[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.max[0], box.max[1], box.max[2]);
    }
 
    void execute(const argumentum::ParseResult& res)
@@ -268,10 +273,12 @@ int main(int argc, char** argv)
    std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
    std::shared_ptr<MeasureOptions> measureOptions = std::make_shared<MeasureOptions>( "measure", globalOptions );
    std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );
+   std::shared_ptr<VisualizeOptions> visOptions = std::make_shared<VisualizeOptions>( "visualize", globalOptions );
 
    params.add_parameters( globalOptions );
    params.add_command(measureOptions).help("Measure times.");
    params.add_command(statsOptions).help("Measure stats.");
+   params.add_command(visOptions).help("Visualize.");
 
    ParseResult res = parser.parse_args( argc, argv, 1 );
    if ( !res )
