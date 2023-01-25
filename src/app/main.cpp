@@ -38,52 +38,269 @@
 #include <argumentum/argparse-h.h>
 
 #include <memory>
+#include <chrono>
 
 class GlobalOptions : public argumentum::Options
 {
 public:
-   int logLevel = 0;
+   std::string inputFile;
+   std::string outputFile;
+   int dim = 3;
+   int k = 1;
+   float epsilon = 0;
+   int leafSize = 10;
    void add_parameters(argumentum::ParameterConfig& params) override
    {
-      params.add_parameter( logLevel, "--loglevel" ).nargs( 1 );
+      params.add_parameter( inputFile, "--in" ).nargs( 1 );
+      params.add_parameter( dim, "D" ).nargs( 1 );
+      params.add_parameter( k, "k" ).nargs( 1 );
+      params.add_parameter( epsilon, "e" ).nargs( 1 );
+      params.add_parameter( leafSize, "l" ).nargs( 1 );
+      params.add_parameter( outputFile, "--out" ).nargs( 1 );
    }
 };
 
-class AccumulatorOptions : public argumentum::CommandOptions
+std::vector<PointObj<float, 3>> LoadPoints(const std::string& filename)
 {
-   std::shared_ptr<GlobalOptions> mpGlobal;
-public:
-   AccumulatorOptions( std::string_view name, std::shared_ptr<GlobalOptions> pGlobal )
-      : CommandOptions( name )
-      , mpGlobal( pGlobal )
-  {}
+   std::vector<PointObj<float, 3>> res;
+   FILE* file = fopen(filename.c_str(), "r");
+   if (!file) {
+      std::cout << "failed to read file: " << filename << std::endl;
+      return res;
+   }
+   Vec<float, 3> v;
+   while (fscanf(file, "%f %f %f\n", &v[0], &v[1], &v[2]) != EOF)
+   {
+      res.push_back(PointObj<float, 3>({v}));
+   }
+   
+   return res;
+}
 
-  void execute(const argumentum::ParseResult& res)
-  {
-     
-  }
+void SavePoints(const std::string& filename, const std::vector<PointObj<float, 3>>& points)
+{
+
+}
+
+class MeasureOptions : public argumentum::CommandOptions
+{
+   std::shared_ptr<GlobalOptions> _globalOptions;
+public:
+   MeasureOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
+      : CommandOptions(name), _globalOptions(globalOptions)
+   {}
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      using namespace std::chrono;
+      if (_globalOptions && _globalOptions->inputFile.size() > 0 )
+      {
+         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         BBDTree<float, 3> tree;
+         // build
+         {
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
+            //tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+            double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
+            std::cout << "      build time: " << totalDuration << " s" << std::endl;
+         }
+         Vec<float, 3> queryPoint = {0, 0, 0};
+         // query
+         {
+            HeapPriQueue<DistObj<float, 3>> priQueue;
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            std::vector<PointObjF3> knn = FindKAproximateNearestNeighbors<float, 3>(tree, queryPoint, _globalOptions->k, _globalOptions->epsilon, priQueue);
+            double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
+            std::cout << "aprox query time: " << totalDuration << " s" << std::endl;
+         }
+         // naive query
+         {
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            std::vector<PointObjF3> knn = LinearFindKNearestNeighbors(points, queryPoint, _globalOptions->k);
+            double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
+            std::cout << "naive query time: " << totalDuration << " s" << std::endl;
+         }
+      }
+   }
+};
+
+class StatsOptions : public argumentum::CommandOptions
+{
+   std::shared_ptr<GlobalOptions> _globalOptions;
+public:
+   StatsOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
+      : CommandOptions(name), _globalOptions(globalOptions)
+   {}
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      using namespace std::chrono;
+      if (_globalOptions && _globalOptions->inputFile.size() > 0)
+      {
+         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         BBDTree<float, 3> tree;
+         tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
+         //tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+         BBDTreeStats stats = tree.GetStats();
+
+         int splitNodeSize = sizeof(SplitNode);
+         int shrinkNodeSize = sizeof(ShrinkNode<float, 3>);
+         int leafNodeSize = sizeof(LeafNode);
+         int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
+
+         std::cout << "innerNodeCount:    " << stats.innerNodeCount << std::endl;
+         std::cout << "leafNodeCount:     " << stats.leafNodeCount << std::endl;
+         std::cout << "splitNodeCount:    " << stats.splitNodeCount << std::endl;
+         std::cout << "shrinkNodeCount:   " << stats.shrinkNodeCount << std::endl;
+         std::cout << "nullCount:         " << stats.nullCount << std::endl;
+         std::cout << "maxDepth:          " << stats.maxDepth << std::endl;
+         std::cout << "avgDepth:          " << stats.avgDepth << std::endl;
+         std::cout << "avgLeafSize:       " << stats.avgLeafSize << std::endl;
+         std::cout << "memoryConsumption: " << stats.memoryConsumption << " B " << "(expected: ";
+         std::cout << splitNodeSize << "*" << stats.splitNodeCount << " + ";
+         std::cout << shrinkNodeSize << "*" << stats.shrinkNodeCount << " + ";
+         std::cout << leafNodeSize << "*" << stats.leafNodeCount << " = ";
+         std::cout << expectedSize << " B)" << std::endl;
+         std::cout << "pointsConsumption: " << (sizeof(PointObj<float, 3>) * points.size()) << " B " << std::endl;
+      }
+   }
+};
+
+class VisualizeOptions : public argumentum::CommandOptions
+{
+   std::shared_ptr<GlobalOptions> _globalOptions;
+public:
+   VisualizeOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
+      : CommandOptions(name), _globalOptions(globalOptions)
+   {}
+
+   void WritePoint(FILE* file, VecF3 point)
+   {
+      fprintf(file, "point %f %f %f", point[0], point[1], point[2]);
+   }
+
+   void WriteBox(FILE* file, BoxF3 box)
+   {
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.min[2]);
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.max[2]);
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.max[2]);
+      
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
+
+      
+      fprintf(file, "line %f %f %f %f %f %f", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.min[2]);
+   }
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      using namespace std::chrono;
+      if (_globalOptions && _globalOptions->inputFile.size() > 0 && _globalOptions->outputFile.size() > 0)
+      {
+         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         BBDTree<float, 3> tree;
+         //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
+         tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+
+         FILE* file = fopen(_globalOptions->outputFile.c_str(), "w");
+         if (!file) {
+            std::cout << "failed to write to a file " << _globalOptions->outputFile << std::endl;
+            return;
+         }
+
+         for (const PointObj<float, 3>& point : points) {
+            WritePoint(file, point.point);
+         }
+         
+         std::queue<DistNode<float, 3>> nodeQueue;
+         DistNode<float, 3> rootNode{0, 0, tree.GetBBox()};
+         nodeQueue.push(rootNode);
+         while (!nodeQueue.empty())
+         {
+            DistNode<float, 3> distNode = nodeQueue.front();
+            const Node* node = tree.GetNode(distNode.nodeIdx);
+            nodeQueue.pop();
+
+            WriteBox(file, distNode.box);
+
+            if (node->GetType() == NodeType::LEAF)
+            {
+
+            }
+            else
+            {
+                  const InnerNode* innerNode = (const InnerNode*)node;
+                  Box leftBox = distNode.box;
+                  Box rightBox = distNode.box;
+                  if (node->GetType() == NodeType::SPLIT)
+                  {
+                     const SplitNode* splitNode = (const SplitNode*)node;
+                     int splitDim = splitNode->GetSplitDim();
+                     float half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
+                     leftBox.max[splitDim] = half;
+                     rightBox.min[splitDim] = half;
+                  }
+                  else if (node->GetType() == NodeType::SHRINK)
+                  {
+                     const ShrinkNode<float, 3>* shrinkNode = (const ShrinkNode<float, 3>*)node;
+                     leftBox = shrinkNode->GetShrinkBox();
+                  }
+                  float depth = distNode.dist + 1;
+                  if (innerNode->HasLeftChild())
+                     nodeQueue.push({depth, distNode.nodeIdx + GetNodeOffset<float, 3>(node->GetType()), leftBox});
+                  if (innerNode->GetRightChildIndex() != 0)
+                     nodeQueue.push({depth, innerNode->GetRightChildIndex(), rightBox});
+            }
+         }
+      }
+   }
 };
 
 int main(int argc, char** argv)
 {
-    std::vector<PointObj<float, 2>> points;
-    points.push_back({Vec<float, 2>({0, 0})});
-    points.push_back({Vec<float, 2>({1, 0})});
-    points.push_back({Vec<float, 2>({0, 1})});
-    points.push_back({Vec<float, 2>({1, 1})});
+   using namespace argumentum;
 
-    Vec<float, 2> query({0.f, 0.75f});
-    PointObj<float, 2> nn = LinearFindNearestNeighbor(points, query);
+   argument_parser parser;
+   ParameterConfig params = parser.params();
+   parser.config().program( argv[0] ).description( "Aproximate k nearest neighbor search" );
 
-    std::cout << nn.point[0] << ", " << nn.point[1] << std::endl;
-    
-    std::vector<PointObj<float, 2>> knn = LinearFindKNearestNeighbors(points, query, 3);
+   std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
+   std::shared_ptr<MeasureOptions> measureOptions = std::make_shared<MeasureOptions>( "measure", globalOptions );
+   std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );
 
-    for (int i = 0; i < (int)knn.size(); ++i) {
-        std::cout << knn[i].point[0] << ", " << knn[i].point[1] << std::endl;
-    }
-    
-    //std::cout << (std::numeric_limits<float>::infinity() / 2) << std::endl;
+   params.add_parameters( globalOptions );
+   params.add_command(measureOptions).help("Measure times.");
+   params.add_command(statsOptions).help("Measure stats.");
 
-    return 0;
+   ParseResult res = parser.parse_args( argc, argv, 1 );
+   if ( !res )
+      return 1;
+
+   auto pcmd = res.commands.back();
+   if ( !pcmd )
+      return 1;
+
+   pcmd->execute( res );
+/*
+   std::vector<PointObj<float, 2>> points;
+   points.push_back({Vec<float, 2>({0, 0})});
+   points.push_back({Vec<float, 2>({1, 0})});
+   points.push_back({Vec<float, 2>({0, 1})});
+   points.push_back({Vec<float, 2>({1, 1})});
+
+   Vec<float, 2> query({0.f, 0.75f});
+   PointObj<float, 2> nn = LinearFindNearestNeighbor(points, query);
+
+   std::cout << nn.point[0] << ", " << nn.point[1] << std::endl;
+   
+   std::vector<PointObj<float, 2>> knn = LinearFindKNearestNeighbors(points, query, 3);
+
+   for (int i = 0; i < (int)knn.size(); ++i) {
+      std::cout << knn[i].point[0] << ", " << knn[i].point[1] << std::endl;
+   }
+   
+   std::cout << (std::numeric_limits<float>::infinity() / 2) << std::endl;
+*/
+   return 0;
 }

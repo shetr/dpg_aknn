@@ -157,7 +157,7 @@ struct TraversalStats
     int visitedLeafs = 0;
 };
 
-template<typename FloatT, int Dim, typename ObjData = Empty, bool measureStats>
+template<typename FloatT, int Dim, typename ObjData = Empty, bool measureStats = false>
 std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue, TraversalStats& stats)
 {
     // TODO: handle edge case when there are 0 nodes

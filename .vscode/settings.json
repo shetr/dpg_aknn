@@ -77,6 +77,10 @@
         "xlocmes": "cpp",
         "xlocmon": "cpp",
         "xloctime": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "cstdarg": "cpp",
+        "filesystem": "cpp",
+        "numeric": "cpp",
+        "regex": "cpp"
     }
 }

@@ -181,7 +181,7 @@ struct BBDTreeStats
     int leafNodeCount;
     int splitNodeCount;
     int shrinkNodeCount;
-    int nullChildCount;
+    int nullCount;
     int maxDepth;
     double avgDepth;
     double avgLeafSize;
@@ -237,8 +237,8 @@ public:
 
     const Box<FloatT, Dim>& GetBBox() const { return _bbox; }
 
-    int GetLeafSize(LeafNode* leafNode) const {
-        return tree.GetObj(leafNode->GetPointsEndIndex()) - tree.GetObj(leafNode->GetPointsBegIndex());
+    int GetLeafSize(const LeafNode* leafNode) const {
+        return GetObj(leafNode->GetPointsEndIndex()) - GetObj(leafNode->GetPointsBegIndex());
     }
 
     BBDTreeStats GetStats() const {
@@ -249,7 +249,7 @@ public:
         stats.leafNodeCount = interStats.leafNodeCount;
         stats.splitNodeCount = interStats.splitNodeCount;
         stats.shrinkNodeCount = interStats.shrinkNodeCount;
-        stats.nullChildCount = interStats.nullChildCount;
+        stats.nullCount = interStats.nullCount;
         stats.maxDepth = interStats.maxDepth;
         stats.avgDepth = (double)interStats.depthSum / (double)interStats.leafNodeCount;
         stats.avgLeafSize = (double)interStats.leafSizesSum / (double)interStats.leafNodeCount;
@@ -373,7 +373,7 @@ private:
             return AddLeafNode(state.pointsBeg - _objs.data(), state.pointsEnd - _objs.data());
         } else {
             SplitState<FloatT, Dim, ObjData> splitState = state;
-            for (int splitCount = 0; splitCount < Dim / 2; ++splitCount) {
+            for (int splitCount = 0; splitCount < Dim*2; ++splitCount) {
                 SetBiggerSplit(splitState);
                 if (splitState.size() <= _leafMaxSize) {
                     break;
