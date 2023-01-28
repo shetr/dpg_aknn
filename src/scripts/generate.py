@@ -2,10 +2,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def gen_clusters(size, dim, clusters_count, sigma):
+def gen_clusters(size, dim, clusters_count, sigma, max_val=1):
     cluster_size = size // clusters_count
     scale = np.full(shape=dim, fill_value=sigma)
-    locs = np.random.uniform(size=(clusters_count, dim))
+    locs = np.random.uniform(high=max_val, size=(clusters_count, dim))
     cluster_data = [np.random.normal(loc=locs[i], scale=scale, size=(cluster_size, dim)) for i in range(clusters_count)]
     data = np.vstack(cluster_data)
     return data
