@@ -373,13 +373,12 @@ private:
             return AddLeafNode(state.pointsBeg - _objs.data(), state.pointsEnd - _objs.data());
         } else {
             SplitState<FloatT, Dim, ObjData> splitState = state;
-            for (int splitCount = 0; splitCount < Dim*2; ++splitCount) {
+            int splitCount = 0;
+            while (3 * splitState.size() > 2 * state.size() && splitState.size() > _leafMaxSize) {
                 SetBiggerSplit(splitState);
-                if (splitState.size() <= _leafMaxSize) {
-                    break;
-                }
+                ++splitCount;
             }
-            if (2 * splitState.size() <= state.size()) {
+            if (splitCount == 1) {
                 BoxSplit<FloatT, Dim> split = state.box.Split();
                 uint64_t splitNodeIndex = AddSplitNode(split.dim);
                 // split points
@@ -389,9 +388,6 @@ private:
                 BuildMidpointSplitChilds(splitNodeIndex, split.left, split.right, state.pointsBeg, state.pointsEnd, state.auxBeg, splitTo);
                 return splitNodeIndex;
             } else {
-                while (3 * splitState.size() > 2 * state.size() && splitState.size() > _leafMaxSize) {
-                    SetBiggerSplit(splitState);
-                }
                 PointObjT* insideBoxTo = SplitPoints(state.pointsBeg, state.pointsEnd, state.auxBeg, [&splitState](const Vec<FloatT, Dim>& point) {
                     return splitState.box.Includes(point);
                 });
