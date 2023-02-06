@@ -1,1 +1,1 @@
-build\Release\Release\app.exe --in data\uniform_3d_e5.txt 3 1 0 10 stats
+build\Release\Release\app.exe --in data\clusters_3d_e5.txt 3 1 0 10 stats

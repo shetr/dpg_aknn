@@ -1,1 +1,1 @@
-build\Release\Release\app.exe --in data\uniform_3d_e3.txt --out out\test.gl  3 1 0 10 visualize
+build\Release\Release\app.exe --in data\clusters_3d_e5.txt --out out\test.gl  3 1 0 10 visualize

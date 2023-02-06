@@ -177,25 +177,47 @@ public:
 
    void WritePoint(FILE* file, VecF3 point)
    {
-      fprintf(file, "point %f %f %f\n", point[0], point[1], point[2]);
+      fprintf(file, "point_colored %f %f %f 1 1 0\n", point[0], point[1], point[2]);
    }
 
-   void WriteBox(FILE* file, BoxF3 box)
+   void WriteSplit(FILE* file, BoxF3 box, float value, int dim, VecF3 color)
    {
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.min[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.min[0], box.min[1], box.max[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.min[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.min[0], box.min[1], box.max[2]);
+      VecF3 v0 = box.min;
+      VecF3 v1 = box.min;
+      VecF3 v2 = box.max;
+      VecF3 v3 = box.max;
+      v0[dim] = value;
+      v1[dim] = value;
+      v2[dim] = value;
+      v3[dim] = value;
+      int otherDim = (dim + 1) % 3;
+      v1[otherDim] = box.max[otherDim];
+      v3[otherDim] = box.min[otherDim];
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v1[0], v1[1], v1[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v2[0], v2[1], v2[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v3[0], v3[1], v3[2], color[0], color[1], color[2], v0[0], v0[1], v0[2], color[0], color[1], color[2]);
       
-      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], box.max[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], box.max[0], box.min[1], box.max[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], box.max[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], box.max[0], box.min[1], box.max[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+   }
 
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], box.max[0], box.min[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], box.max[0], box.min[1], box.max[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], box.max[0], box.max[1], box.min[2]);
-      fprintf(file, "line %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], box.max[0], box.max[1], box.max[2]);
+   void WriteBox(FILE* file, BoxF3 box, VecF3 color)
+   {
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+      
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
    }
 
    void execute(const argumentum::ParseResult& res)
@@ -208,6 +230,8 @@ public:
          //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
          tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
 
+         BBDTreeStats stats = tree.GetStats();
+
          FILE* file = fopen(_globalOptions->outputFile.c_str(), "w");
          if (!file) {
             std::cout << "failed to write to a file " << _globalOptions->outputFile << std::endl;
@@ -217,6 +241,8 @@ public:
          for (const PointObj<float, 3>& point : points) {
             WritePoint(file, point.point);
          }
+
+         WriteBox(file, tree.GetBBox(), {1, 1, 1});
          
          std::queue<DistNode<float, 3>> nodeQueue;
          DistNode<float, 3> rootNode{0, 0, tree.GetBBox()};
@@ -227,35 +253,34 @@ public:
             const Node* node = tree.GetNode(distNode.nodeIdx);
             nodeQueue.pop();
 
-            WriteBox(file, distNode.box);
+            float t = distNode.dist / stats.maxDepth;
+            float shade = 0.2f * (1.0f - t) + t;
 
-            if (node->GetType() == NodeType::LEAF)
+            if (node->GetType() != NodeType::LEAF)
             {
-
-            }
-            else
-            {
-                  const InnerNode* innerNode = (const InnerNode*)node;
-                  Box leftBox = distNode.box;
-                  Box rightBox = distNode.box;
-                  if (node->GetType() == NodeType::SPLIT)
-                  {
-                     const SplitNode* splitNode = (const SplitNode*)node;
-                     int splitDim = splitNode->GetSplitDim();
-                     float half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
-                     leftBox.max[splitDim] = half;
-                     rightBox.min[splitDim] = half;
-                  }
-                  else if (node->GetType() == NodeType::SHRINK)
-                  {
-                     const ShrinkNode<float, 3>* shrinkNode = (const ShrinkNode<float, 3>*)node;
-                     leftBox = shrinkNode->GetShrinkBox();
-                  }
-                  float depth = distNode.dist + 1;
-                  if (innerNode->HasLeftChild())
-                     nodeQueue.push({depth, distNode.nodeIdx + GetNodeOffset<float, 3>(node->GetType()), leftBox});
-                  if (innerNode->GetRightChildIndex() != 0)
-                     nodeQueue.push({depth, innerNode->GetRightChildIndex(), rightBox});
+               const InnerNode* innerNode = (const InnerNode*)node;
+               Box leftBox = distNode.box;
+               Box rightBox = distNode.box;
+               if (node->GetType() == NodeType::SPLIT)
+               {
+                  const SplitNode* splitNode = (const SplitNode*)node;
+                  int splitDim = splitNode->GetSplitDim();
+                  float half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
+                  leftBox.max[splitDim] = half;
+                  rightBox.min[splitDim] = half;
+                  WriteSplit(file, distNode.box, half, splitDim, {t, 0, t});
+               }
+               else if (node->GetType() == NodeType::SHRINK)
+               {
+                  const ShrinkNode<float, 3>* shrinkNode = (const ShrinkNode<float, 3>*)node;
+                  leftBox = shrinkNode->GetShrinkBox();
+                  WriteBox(file, leftBox, {0, t, 0});
+               }
+               float depth = distNode.dist + 1;
+               if (innerNode->HasLeftChild())
+                  nodeQueue.push({depth, distNode.nodeIdx + GetNodeOffset<float, 3>(node->GetType()), leftBox});
+               if (innerNode->GetRightChildIndex() != 0)
+                  nodeQueue.push({depth, innerNode->GetRightChildIndex(), rightBox});
             }
          }
       }
