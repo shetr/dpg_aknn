@@ -52,10 +52,10 @@ public:
    void add_parameters(argumentum::ParameterConfig& params) override
    {
       params.add_parameter( inputFile, "--in" ).nargs( 1 );
-      params.add_parameter( dim, "D" ).nargs( 1 );
-      params.add_parameter( k, "k" ).nargs( 1 );
-      params.add_parameter( epsilon, "e" ).nargs( 1 );
-      params.add_parameter( leafSize, "l" ).nargs( 1 );
+      params.add_parameter( dim, "--dim" ).nargs( 1 );
+      params.add_parameter( k, "--k" ).nargs( 1 );
+      params.add_parameter( epsilon, "--eps" ).nargs( 1 );
+      params.add_parameter( leafSize, "--leaf" ).nargs( 1 );
       params.add_parameter( outputFile, "--out" ).nargs( 1 );
    }
 };
@@ -167,6 +167,51 @@ public:
    }
 };
 
+void WritePoint(FILE* file, VecF3 point, VecF3 color)
+{
+   fprintf(file, "point_colored %f %f %f %f %f %f\n", point[0], point[1], point[2], color[0], color[1], color[2]);
+}
+
+void WriteSplit(FILE* file, BoxF3 box, float value, int dim, VecF3 color)
+{
+   VecF3 v0 = box.min;
+   VecF3 v1 = box.min;
+   VecF3 v2 = box.max;
+   VecF3 v3 = box.max;
+   v0[dim] = value;
+   v1[dim] = value;
+   v2[dim] = value;
+   v3[dim] = value;
+   int otherDim = (dim + 1) % 3;
+   v1[otherDim] = box.max[otherDim];
+   v3[otherDim] = box.min[otherDim];
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v1[0], v1[1], v1[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v2[0], v2[1], v2[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v3[0], v3[1], v3[2], color[0], color[1], color[2], v0[0], v0[1], v0[2], color[0], color[1], color[2]);
+   
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+}
+
+void WriteBox(FILE* file, BoxF3 box, VecF3 color)
+{
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
+}
+
 class VisualizeOptions : public argumentum::CommandOptions
 {
    std::shared_ptr<GlobalOptions> _globalOptions;
@@ -174,51 +219,6 @@ public:
    VisualizeOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
       : CommandOptions(name), _globalOptions(globalOptions)
    {}
-
-   void WritePoint(FILE* file, VecF3 point)
-   {
-      fprintf(file, "point_colored %f %f %f 1 1 0\n", point[0], point[1], point[2]);
-   }
-
-   void WriteSplit(FILE* file, BoxF3 box, float value, int dim, VecF3 color)
-   {
-      VecF3 v0 = box.min;
-      VecF3 v1 = box.min;
-      VecF3 v2 = box.max;
-      VecF3 v3 = box.max;
-      v0[dim] = value;
-      v1[dim] = value;
-      v2[dim] = value;
-      v3[dim] = value;
-      int otherDim = (dim + 1) % 3;
-      v1[otherDim] = box.max[otherDim];
-      v3[otherDim] = box.min[otherDim];
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v1[0], v1[1], v1[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v2[0], v2[1], v2[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v3[0], v3[1], v3[2], color[0], color[1], color[2], v0[0], v0[1], v0[2], color[0], color[1], color[2]);
-      
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
-   }
-
-   void WriteBox(FILE* file, BoxF3 box, VecF3 color)
-   {
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-      
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-      fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
-   }
 
    void execute(const argumentum::ParseResult& res)
    {
@@ -239,7 +239,7 @@ public:
          }
 
          for (const PointObj<float, 3>& point : points) {
-            WritePoint(file, point.point);
+            WritePoint(file, point.point, {1, 1, 0});
          }
 
          WriteBox(file, tree.GetBBox(), {1, 1, 1});
@@ -298,12 +298,12 @@ int main(int argc, char** argv)
    std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
    std::shared_ptr<MeasureOptions> measureOptions = std::make_shared<MeasureOptions>( "measure", globalOptions );
    std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );
-   std::shared_ptr<VisualizeOptions> visOptions = std::make_shared<VisualizeOptions>( "visualize", globalOptions );
+   std::shared_ptr<VisualizeOptions> visOptions = std::make_shared<VisualizeOptions>( "viz_tree", globalOptions );
 
    params.add_parameters( globalOptions );
    params.add_command(measureOptions).help("Measure times.");
    params.add_command(statsOptions).help("Measure stats.");
-   params.add_command(visOptions).help("Visualize.");
+   params.add_command(visOptions).help("Visualize tree hierarchy.");
 
    ParseResult res = parser.parse_args( argc, argv, 1 );
    if ( !res )

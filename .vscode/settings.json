@@ -81,6 +81,7 @@
         "cstdarg": "cpp",
         "filesystem": "cpp",
         "numeric": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "*.rh": "cpp"
     }
 }

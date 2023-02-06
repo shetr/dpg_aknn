@@ -90,7 +90,6 @@ std::vector<PointObj<FloatT, Dim, ObjData>> LinearFindKNearestNeighbors(const st
 template<typename FloatT, int Dim, typename ObjData = Empty>
 PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
 {
-    // TODO: handle edge case when there are 0 nodes
     PointObj<FloatT, Dim, ObjData> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
     std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>> nodeQueue;
@@ -151,16 +150,17 @@ PointObj<FloatT, Dim, ObjData> FindNearestNeighbor(const BBDTree<FloatT, Dim, Ob
     return FindAproximateNearestNeighbor<FloatT, Dim, ObjData>(tree, queryPoint, 0);
 }
 
+template<typename FloatT, int Dim>
 struct TraversalStats
 {
     int traversalSteps = 0;
     int visitedLeafs = 0;
+    std::vector<Box<FloatT, Dim>> visitedNodes;
 };
 
 template<typename FloatT, int Dim, typename ObjData = Empty, bool measureStats = false>
-std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue, TraversalStats& stats)
+std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue, TraversalStats<FloatT, Dim>& stats)
 {
-    // TODO: handle edge case when there are 0 nodes
     DistObjCompare<FloatT, Dim, ObjData> distObjCompare;
     aknnQueue.Init(k, distObjCompare);
 
@@ -169,12 +169,15 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
     {
-        if (measureStats)
-            ++stats.traversalSteps;
-
         DistNode<FloatT, Dim> distNode = nodeQueue.top();
         const Node* node = tree.GetNode(distNode.nodeIdx);
         nodeQueue.pop();
+        
+        if (measureStats)
+        {
+            ++stats.traversalSteps;
+            stats.visitedNodes.push_back(distNode.box);
+        }
 
         if (aknnQueue.IsFull() && distNode.dist > aknnQueue.GetLast().dist / (1 + epsilon)) {
             break;
@@ -194,7 +197,6 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
         }
         else
         {
-            // TODO: generalize for both nn and knn
             const InnerNode* innerNode = (const InnerNode*)node;
             Box leftBox = distNode.box;
             Box rightBox = distNode.box;
@@ -226,7 +228,7 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
 template<typename FloatT, int Dim, typename ObjData = Empty>
 std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue)
 {
-    TraversalStats dummyStats;
+    TraversalStats<FloatT, Dim> dummyStats;
     return FindKAproximateNearestNeighbors<FloatT, Dim, ObjData, false>(tree, queryPoint, k, epsilon, aknnQueue, dummyStats);
 }
 
