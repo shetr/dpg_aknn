@@ -104,6 +104,8 @@ void PushChildsToNodeQueue(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<
     const InnerNode* innerNode = (const InnerNode*)node;
     Box leftBox = distNode.box;
     Box rightBox = distNode.box;
+    FloatT distLeft;
+    FloatT distRight;
     if (node->GetType() == NodeType::SPLIT)
     {
         const SplitNode* splitNode = (const SplitNode*)node;
@@ -111,14 +113,18 @@ void PushChildsToNodeQueue(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<
         FloatT half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
         leftBox.max[splitDim] = half;
         rightBox.min[splitDim] = half;
+        
+        distLeft = leftBox.SquaredDistance(queryPoint);
+        distRight = rightBox.SquaredDistance(queryPoint);
     }
     else if (node->GetType() == NodeType::SHRINK)
     {
         const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
         leftBox = shrinkNode->GetShrinkBox();
+        
+        distLeft = leftBox.SquaredDistance(queryPoint);
+        distRight = distNode.dist;
     }
-    FloatT distLeft = leftBox.SquaredDistance(queryPoint);
-    FloatT distRight = rightBox.SquaredDistance(queryPoint);
     if (innerNode->HasLeftChild())
         nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset<FloatT, Dim>(node->GetType()), leftBox});
     if (innerNode->GetRightChildIndex() != 0)
@@ -131,7 +137,7 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
     PointObj<FloatT, Dim, ObjData> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
     DistNodePriQueue<FloatT, Dim> nodeQueue;
-    DistNode<FloatT, Dim> rootNode{0, 0, tree.GetBBox()};
+    DistNode<FloatT, Dim> rootNode{tree.GetBBox().SquaredDistance(queryPoint), 0, tree.GetBBox()};
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
     {
@@ -195,7 +201,7 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
     aknnQueue.Init(k, distObjCompare);
 
     DistNodePriQueue<FloatT, Dim> nodeQueue;
-    DistNode<FloatT, Dim> rootNode{0, 0, tree.GetBBox()};
+    DistNode<FloatT, Dim> rootNode{tree.GetBBox().SquaredDistance(queryPoint), 0, tree.GetBBox()};
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
     {

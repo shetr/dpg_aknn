@@ -20,6 +20,10 @@ add_executable(app ${APP_SRC})
 target_include_directories(app PUBLIC ${INCLUDE_DIR} "src/extern/argumentum/include")
 target_link_libraries(app PUBLIC aknn)
 
+add_custom_command(TARGET app POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:app> "${CMAKE_CURRENT_SOURCE_DIR}/exe/")
+
 file(GLOB_RECURSE UNIT_TESTS_SRC "src/unit_tests/*.cpp" "src/unit_tests/*.h")
 add_executable(unit_tests ${UNIT_TESTS_SRC})
 target_include_directories(unit_tests PUBLIC ${INCLUDE_DIR} "src/extern/googletest/googletest/include")
