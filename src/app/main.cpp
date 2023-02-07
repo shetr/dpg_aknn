@@ -51,35 +51,34 @@ public:
    int leafSize = 10;
    void add_parameters(argumentum::ParameterConfig& params) override
    {
-      params.add_parameter( inputFile, "--in" ).nargs( 1 );
-      params.add_parameter( dim, "--dim" ).nargs( 1 );
-      params.add_parameter( k, "--k" ).nargs( 1 );
-      params.add_parameter( epsilon, "--eps" ).nargs( 1 );
-      params.add_parameter( leafSize, "--leaf" ).nargs( 1 );
-      params.add_parameter( outputFile, "--out" ).nargs( 1 );
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(k, "--k").nargs(1);
+      params.add_parameter(epsilon, "--eps").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
    }
 };
 
-std::vector<PointObj<float, 3>> LoadPoints(const std::string& filename)
+template<int Dim>
+std::vector<PointObj<float, Dim>> LoadPoints(const std::string& filename)
 {
-   std::vector<PointObj<float, 3>> res;
-   FILE* file = fopen(filename.c_str(), "r");
+   std::vector<PointObj<float, Dim>> res;
+   std::ifstream file(filename);
    if (!file) {
       std::cout << "failed to read file: " << filename << std::endl;
       return res;
    }
-   Vec<float, 3> v;
-   while (fscanf(file, "%f %f %f\n", &v[0], &v[1], &v[2]) != EOF)
+   Vec<float, Dim> v;
+   while (file.peek() != EOF)
    {
-      res.push_back(PointObj<float, 3>({v}));
+      for (int d = 0; d < Dim; ++d) {
+         file >> v[d];
+      }
+      res.push_back(PointObj<float, Dim>({v}));
    }
    
    return res;
-}
-
-void SavePoints(const std::string& filename, const std::vector<PointObj<float, 3>>& points)
-{
-
 }
 
 class MeasureOptions : public argumentum::CommandOptions
@@ -95,7 +94,7 @@ public:
       using namespace std::chrono;
       if (_globalOptions && _globalOptions->inputFile.size() > 0 )
       {
-         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         std::vector<PointObj<float, 3>> points = LoadPoints<3>(_globalOptions->inputFile);
          BBDTree<float, 3> tree;
          // build
          {
@@ -123,6 +122,11 @@ public:
          }
       }
    }
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+     // ... same as above
+   }
 };
 
 class StatsOptions : public argumentum::CommandOptions
@@ -138,7 +142,7 @@ public:
       using namespace std::chrono;
       if (_globalOptions && _globalOptions->inputFile.size() > 0)
       {
-         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         std::vector<PointObj<float, 3>> points = LoadPoints<3>(_globalOptions->inputFile);
          BBDTree<float, 3> tree;
          //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
          tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
@@ -164,6 +168,12 @@ public:
          std::cout << expectedSize << " B)" << std::endl;
          std::cout << "pointsConsumption: " << (sizeof(PointObj<float, 3>) * points.size()) << " B " << std::endl;
       }
+   }
+
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+     // ... same as above
    }
 };
 
@@ -212,29 +222,29 @@ void WriteBox(FILE* file, BoxF3 box, VecF3 color)
    fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
 }
 
-class VisualizeOptions : public argumentum::CommandOptions
+class TreeVizOptions : public argumentum::CommandOptions
 {
-   std::shared_ptr<GlobalOptions> _globalOptions;
 public:
-   VisualizeOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
-      : CommandOptions(name), _globalOptions(globalOptions)
-   {}
+   std::string inputFile;
+   std::string outputFile;
+   int leafSize = 10;
+public:
+   TreeVizOptions(std::string_view name) : CommandOptions(name) {}
 
    void execute(const argumentum::ParseResult& res)
    {
-      using namespace std::chrono;
-      if (_globalOptions && _globalOptions->inputFile.size() > 0 && _globalOptions->outputFile.size() > 0)
+      if (inputFile.size() > 0 && outputFile.size() > 0)
       {
-         std::vector<PointObj<float, 3>> points = LoadPoints(_globalOptions->inputFile);
+         std::vector<PointObj<float, 3>> points = LoadPoints<3>(inputFile);
          BBDTree<float, 3> tree;
-         //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
-         tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+         //tree = BBDTree<float, 3>::BuildBasicSplitTree(leafSize, points);
+         tree = BBDTree<float, 3>::BuildMidpointSplitTree(leafSize, points);
 
          BBDTreeStats stats = tree.GetStats();
 
-         FILE* file = fopen(_globalOptions->outputFile.c_str(), "w");
+         FILE* file = fopen(outputFile.c_str(), "w");
          if (!file) {
-            std::cout << "failed to write to a file " << _globalOptions->outputFile << std::endl;
+            std::cout << "failed to write to a file " << outputFile << std::endl;
             return;
          }
 
@@ -254,7 +264,7 @@ public:
             nodeQueue.pop();
 
             float t = distNode.dist / stats.maxDepth;
-            float shade = 0.2f * (1.0f - t) + t;
+            float shade = 0.6f * (1.0f - t) + t;
 
             if (node->GetType() != NodeType::LEAF)
             {
@@ -268,13 +278,13 @@ public:
                   float half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
                   leftBox.max[splitDim] = half;
                   rightBox.min[splitDim] = half;
-                  WriteSplit(file, distNode.box, half, splitDim, {t, 0, t});
+                  WriteSplit(file, distNode.box, half, splitDim, {1, 0, 1});
                }
                else if (node->GetType() == NodeType::SHRINK)
                {
                   const ShrinkNode<float, 3>* shrinkNode = (const ShrinkNode<float, 3>*)node;
                   leftBox = shrinkNode->GetShrinkBox();
-                  WriteBox(file, leftBox, {0, t, 0});
+                  WriteBox(file, leftBox, {0, 1, 0});
                }
                float depth = distNode.dist + 1;
                if (innerNode->HasLeftChild())
@@ -284,6 +294,181 @@ public:
             }
          }
       }
+   }
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
+   }
+};
+
+class EpsGraphOptions : public argumentum::CommandOptions
+{
+public:
+   std::string inputFile;
+   std::string outputFile;
+   int dim = 3;
+   int k = 1;
+   int leafSize = 10;
+public:
+   EpsGraphOptions(std::string_view name) : CommandOptions(name) {}
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      if (inputFile.size() > 0 && outputFile.size() > 0)
+      {
+         if (dim == 2) {
+            Execute<2>();
+         } else if (dim == 3) {
+            Execute<3>();
+         } else if (dim == 4) {
+            Execute<4>();
+         }
+      }
+   }
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(k, "--k").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
+   }
+
+   template<int Dim>
+   void Execute()
+   {
+      using namespace std::chrono;
+      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
+      BBDTree<float, Dim> tree;
+      tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+
+      BBDTreeStats stats = tree.GetStats();
+
+      FILE* file = fopen(outputFile.c_str(), "w");
+      if (!file) {
+         std::cout << "failed to write to a file " << outputFile << std::endl;
+         return;
+      }
+      
+      int queryCount = 1000;
+      std::vector<Vec<float, Dim>> queryPoints;
+      for (int i = 0; i < queryCount; ++i) {
+         Vec<float, Dim> queryPoint;
+         for (int d = 0; d < Dim; ++d) {
+               queryPoint[d] = ((float)rand()) / RAND_MAX;
+         }
+         queryPoints.push_back(queryPoint);
+      }
+
+      for (int i_eps = 0; i_eps < 100; ++i_eps)
+      {
+         float epsilon = i_eps * 0.1f;
+
+         double totalTime = 0;
+         for (int i = 0; i < queryCount; ++i) {
+            HeapPriQueue<DistObj<float, Dim>> priQueue;
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            std::vector<PointObj<float, Dim>> knn = FindKAproximateNearestNeighbors<float, Dim>(tree, queryPoints[i], k, epsilon, priQueue);
+            double queryDuration = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+            totalTime += queryDuration;
+         }
+         double avgQueryTime = totalTime / queryCount;
+         fprintf(file, "%f ", avgQueryTime);
+      }
+
+      fclose(file);
+   }
+};
+
+class QueueGraphOptions : public argumentum::CommandOptions
+{
+public:
+   std::string inputFile;
+   std::string outputFile;
+   int dim = 3;
+   float epsilon = 0;
+   int leafSize = 10;
+public:
+   QueueGraphOptions(std::string_view name) : CommandOptions(name) {}
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      if (inputFile.size() > 0 && outputFile.size() > 0)
+      {
+         if (dim == 2) {
+            Execute<2>();
+         } else if (dim == 3) {
+            Execute<3>();
+         } else if (dim == 4) {
+            Execute<4>();
+         }
+      }
+   }
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(epsilon, "--eps").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
+   }
+
+   template<int Dim>
+   void Execute()
+   {
+      using namespace std::chrono;
+      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
+      BBDTree<float, Dim> tree;
+      tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+
+      BBDTreeStats stats = tree.GetStats();
+
+      FILE* file = fopen(outputFile.c_str(), "w");
+      if (!file) {
+         std::cout << "failed to write to a file " << outputFile << std::endl;
+         return;
+      }
+      
+      int queryCount = 1000;
+      std::vector<Vec<float, Dim>> queryPoints;
+      for (int i = 0; i < queryCount; ++i) {
+         Vec<float, Dim> queryPoint;
+         for (int d = 0; d < Dim; ++d) {
+               queryPoint[d] = ((float)rand()) / RAND_MAX;
+         }
+         queryPoints.push_back(queryPoint);
+      }
+
+      std::vector<std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>> fixedQueues;
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new LinearPriQueue<DistObj<float, Dim>>()));
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new HeapPriQueue<DistObj<float, Dim>>()));
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new StdPriQueue<DistObj<float, Dim>>()));
+
+      for (int q = 0; q < 3; ++q)
+      {
+         FixedPriQueue<DistObj<float, Dim>>& priQueue = *fixedQueues[q];
+         for (int k = 1; k <= 1024; k += std::max(1, k / 4))
+         {
+            double totalTime = 0;
+            for (int i = 0; i < queryCount; ++i) {
+               high_resolution_clock::time_point start = high_resolution_clock::now();
+               std::vector<PointObj<float, Dim>> knn = FindKAproximateNearestNeighbors<float, Dim>(tree, queryPoints[i], k, epsilon, priQueue);
+               double queryDuration = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+               totalTime += queryDuration;
+            }
+            double avgQueryTime = totalTime / queryCount;
+            fprintf(file, "%f ", avgQueryTime);
+         }
+         fprintf(file, "\n");
+      }
+
+
+      fclose(file);
    }
 };
 
@@ -295,15 +480,19 @@ int main(int argc, char** argv)
    ParameterConfig params = parser.params();
    parser.config().program( argv[0] ).description( "Aproximate k nearest neighbor search" );
 
-   std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
+   /*std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
    std::shared_ptr<MeasureOptions> measureOptions = std::make_shared<MeasureOptions>( "measure", globalOptions );
-   std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );
-   std::shared_ptr<VisualizeOptions> visOptions = std::make_shared<VisualizeOptions>( "viz_tree", globalOptions );
+   std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );*/
+   std::shared_ptr<TreeVizOptions> treeVizOptions = std::make_shared<TreeVizOptions>("tree_viz");
+   std::shared_ptr<EpsGraphOptions> epsGraphOptions = std::make_shared<EpsGraphOptions>("eps_graph");
+   std::shared_ptr<QueueGraphOptions> queueGraphOptions = std::make_shared<QueueGraphOptions>("queue_graph");
 
-   params.add_parameters( globalOptions );
+   /*params.add_parameters( globalOptions );
    params.add_command(measureOptions).help("Measure times.");
-   params.add_command(statsOptions).help("Measure stats.");
-   params.add_command(visOptions).help("Visualize tree hierarchy.");
+   params.add_command(statsOptions).help("Measure stats.");*/
+   params.add_command(treeVizOptions).help("Visualize tree hierarchy.");
+   params.add_command(epsGraphOptions).help("Dependence of execution time on epsilon.");
+   params.add_command(queueGraphOptions).help("Dependence of execution time on queue type and k.");
 
    ParseResult res = parser.parse_args( argc, argv, 1 );
    if ( !res )
@@ -314,25 +503,6 @@ int main(int argc, char** argv)
       return 1;
 
    pcmd->execute( res );
-/*
-   std::vector<PointObj<float, 2>> points;
-   points.push_back({Vec<float, 2>({0, 0})});
-   points.push_back({Vec<float, 2>({1, 0})});
-   points.push_back({Vec<float, 2>({0, 1})});
-   points.push_back({Vec<float, 2>({1, 1})});
 
-   Vec<float, 2> query({0.f, 0.75f});
-   PointObj<float, 2> nn = LinearFindNearestNeighbor(points, query);
-
-   std::cout << nn.point[0] << ", " << nn.point[1] << std::endl;
-   
-   std::vector<PointObj<float, 2>> knn = LinearFindKNearestNeighbors(points, query, 3);
-
-   for (int i = 0; i < (int)knn.size(); ++i) {
-      std::cout << knn[i].point[0] << ", " << knn[i].point[1] << std::endl;
-   }
-   
-   std::cout << (std::numeric_limits<float>::infinity() / 2) << std::endl;
-*/
    return 0;
 }

@@ -17,14 +17,14 @@ def gen_clusters_custom(size, dim, clusters_count, scales, locs):
     return data
 
 if __name__ == "__main__":
-    #data = np.random.uniform(size=(100000, 4))
-    #data = np.random.normal(size=(100000, 4))
+    #data = np.random.uniform(size=(10000000, 4))
+    data = np.random.normal(size=(10000000, 4))
     #data = gen_clusters(10000, 2, 5, 0.01, 0.1)
-    data = gen_clusters_custom(10000000, 2, 5, np.array([0.25, 0.15, 0.1, 0.075, 0.05]), np.array([[0.3, 0.3], [0.8, 0.9], [1, 0], [0, 0.9], [-0.1, 0.5]]))
-    #data = gen_clusters_custom(1000, 3, 6, np.array([0.25, 0.15, 0.1, 0.075, 0.06, 0.05]), np.array([[0.3, 0.3, 0.3], [0.8, 0.9, 0], [1, 0, 0], [0, 0.9, 1], [-0.1, 0.5, 0.9], [0.8, 0.9, 0.7]]))
-    #data = gen_clusters_custom(1000, 4, 6, np.array([0.25, 0.15, 0.1, 0.075, 0.06, 0.05]), np.array([[0.3, 0.3, 0.3, 0.3], [0.8, 0.9, 0, 1], [1, 0, 0, 0.5], [0, 0.9, 1, 0], [-0.1, 0.5, 0.9, 0], [0.8, 0.9, 0.7, 0.8]]))
+    #data = gen_clusters_custom(10000000, 2, 5, np.array([0.25, 0.15, 0.1, 0.075, 0.05]), np.array([[0.3, 0.3], [0.8, 0.9], [1, 0], [0, 0.9], [-0.1, 0.5]]))
+    #data = gen_clusters_custom(10000000, 3, 6, np.array([0.25, 0.15, 0.1, 0.075, 0.06, 0.05]), np.array([[0.3, 0.3, 0.3], [0.8, 0.9, 0], [1, 0, 0], [0, 0.9, 1], [-0.1, 0.5, 0.9], [0.8, 0.9, 0.7]]))
+    #data = gen_clusters_custom(10000000, 4, 6, np.array([0.25, 0.15, 0.1, 0.075, 0.06, 0.05]), np.array([[0.3, 0.3, 0.3, 0.3], [0.8, 0.9, 0, 1], [1, 0, 0, 0.5], [0, 0.9, 1, 0], [-0.1, 0.5, 0.9, 0], [0.8, 0.9, 0.7, 0.8]]))
     
-    np.savetxt('out/clusters_2d_e7.txt', data, fmt='%.10f')
+    np.savetxt('data/normal_4d_e7.txt', data, fmt='%.10f')
     #print(data[0])
     
     #data = np.transpose(data)

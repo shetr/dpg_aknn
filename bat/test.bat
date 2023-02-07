@@ -1,1 +1,1 @@
-exe\app.exe --in out\clusters_2d_e7.txt --dim 2 --k 1 --eps 0 --leaf 10 stats
+exe\app.exe --in data\clusters_2d_e5.txt --dim 2 --k 1 --eps 0 --leaf 10 stats
