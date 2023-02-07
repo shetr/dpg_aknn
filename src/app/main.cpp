@@ -129,51 +129,87 @@ protected:
    }
 };
 
-class StatsOptions : public argumentum::CommandOptions
+class TreeStatsOptions : public argumentum::CommandOptions
 {
-   std::shared_ptr<GlobalOptions> _globalOptions;
+private:
+   std::string inputFile;
+   std::string outputFile;
+   int dim = 3;
+   int leafSize = 10;
 public:
-   StatsOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
-      : CommandOptions(name), _globalOptions(globalOptions)
+   TreeStatsOptions(std::string_view name) : CommandOptions(name)
    {}
+
+   double GetMemoryString(int memory)
+   {
+      return memory / (1024.0 * 1024.0);
+   }
 
    void execute(const argumentum::ParseResult& res)
    {
-      using namespace std::chrono;
-      if (_globalOptions && _globalOptions->inputFile.size() > 0)
+      if (inputFile.size() > 0 && outputFile.size() > 0)
       {
-         std::vector<PointObj<float, 3>> points = LoadPoints<3>(_globalOptions->inputFile);
-         BBDTree<float, 3> tree;
-         //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
-         tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
-         BBDTreeStats stats = tree.GetStats();
-
-         int splitNodeSize = sizeof(SplitNode);
-         int shrinkNodeSize = sizeof(ShrinkNode<float, 3>);
-         int leafNodeSize = sizeof(LeafNode);
-         int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
-
-         std::cout << "innerNodeCount:    " << stats.innerNodeCount << std::endl;
-         std::cout << "leafNodeCount:     " << stats.leafNodeCount << std::endl;
-         std::cout << "splitNodeCount:    " << stats.splitNodeCount << std::endl;
-         std::cout << "shrinkNodeCount:   " << stats.shrinkNodeCount << std::endl;
-         std::cout << "nullCount:         " << stats.nullCount << std::endl;
-         std::cout << "maxDepth:          " << stats.maxDepth << std::endl;
-         std::cout << "avgDepth:          " << stats.avgDepth << std::endl;
-         std::cout << "avgLeafSize:       " << stats.avgLeafSize << std::endl;
-         std::cout << "memoryConsumption: " << stats.memoryConsumption << " B " << "(expected: ";
-         std::cout << splitNodeSize << "*" << stats.splitNodeCount << " + ";
-         std::cout << shrinkNodeSize << "*" << stats.shrinkNodeCount << " + ";
-         std::cout << leafNodeSize << "*" << stats.leafNodeCount << " = ";
-         std::cout << expectedSize << " B)" << std::endl;
-         std::cout << "pointsConsumption: " << (sizeof(PointObj<float, 3>) * points.size()) << " B " << std::endl;
+         if (dim == 2) {
+            Execute<2>();
+         } else if (dim == 3) {
+            Execute<3>();
+         } else if (dim == 4) {
+            Execute<4>();
+         }
       }
+   }
+private:
+
+   template<int Dim>
+   void Execute()
+   {
+      using namespace std::chrono;
+      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
+      BBDTree<float, Dim> tree;
+      double buildTime;
+      {
+         high_resolution_clock::time_point start = high_resolution_clock::now();
+         tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+         buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+      }
+
+      BBDTreeStats stats = tree.GetStats();
+
+      int splitNodeSize = sizeof(SplitNode);
+      int shrinkNodeSize = sizeof(ShrinkNode<float, Dim>);
+      int leafNodeSize = sizeof(LeafNode);
+      int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
+
+      std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
+
+      std::cout << buildTime;
+      std::cout << GetMemoryString(stats.memoryConsumption);
+      std::cout << stats.innerNodeCount;
+      std::cout << stats.leafNodeCount;
+
+      std::cout << "innerNodeCount:    " << stats.innerNodeCount << std::endl;
+      std::cout << "leafNodeCount:     " << stats.leafNodeCount << std::endl;
+      std::cout << "splitNodeCount:    " << stats.splitNodeCount << std::endl;
+      std::cout << "shrinkNodeCount:   " << stats.shrinkNodeCount << std::endl;
+      std::cout << "nullCount:         " << stats.nullCount << std::endl;
+      std::cout << "maxDepth:          " << stats.maxDepth << std::endl;
+      std::cout << "avgDepth:          " << stats.avgDepth << std::endl;
+      std::cout << "avgLeafSize:       " << stats.avgLeafSize << std::endl;
+      std::cout << "memoryConsumption: " << stats.memoryConsumption << " B " << "(expected: ";
+      std::cout << splitNodeSize << "*" << stats.splitNodeCount << " + ";
+      std::cout << shrinkNodeSize << "*" << stats.shrinkNodeCount << " + ";
+      std::cout << leafNodeSize << "*" << stats.leafNodeCount << " = ";
+      std::cout << expectedSize << " B)" << std::endl;
+      std::cout << "pointsConsumption: " << (sizeof(PointObj<float, Dim>) * points.size()) << " B " << std::endl;
    }
 
 protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
-     // ... same as above
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
    }
 };
 
