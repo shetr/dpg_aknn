@@ -86,13 +86,51 @@ std::vector<PointObj<FloatT, Dim, ObjData>> LinearFindKNearestNeighbors(const st
     return DistObjsToPointObjs(priQueue.GetValues());
 }
 
+template<typename FloatT, int Dim>
+struct TraversalStats
+{
+    int traversalSteps = 0;
+    int visitedLeafs = 0;
+    std::vector<Box<FloatT, Dim>> visitedNodes;
+};
 
-template<typename FloatT, int Dim, typename ObjData = Empty>
-PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
+template<typename FloatT, int Dim>
+using DistNodePriQueue = std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>>;
+
+template<typename FloatT, int Dim, typename ObjData>
+void PushChildsToNodeQueue(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, const DistNode<FloatT, Dim>& distNode, DistNodePriQueue<FloatT, Dim>& nodeQueue)
+{
+    const Node* node = tree.GetNode(distNode.nodeIdx);
+    const InnerNode* innerNode = (const InnerNode*)node;
+    Box leftBox = distNode.box;
+    Box rightBox = distNode.box;
+    if (node->GetType() == NodeType::SPLIT)
+    {
+        const SplitNode* splitNode = (const SplitNode*)node;
+        int splitDim = splitNode->GetSplitDim();
+        FloatT half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
+        leftBox.max[splitDim] = half;
+        rightBox.min[splitDim] = half;
+    }
+    else if (node->GetType() == NodeType::SHRINK)
+    {
+        const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
+        leftBox = shrinkNode->GetShrinkBox();
+    }
+    FloatT distLeft = leftBox.SquaredDistance(queryPoint);
+    FloatT distRight = rightBox.SquaredDistance(queryPoint);
+    if (innerNode->HasLeftChild())
+        nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset<FloatT, Dim>(node->GetType()), leftBox});
+    if (innerNode->GetRightChildIndex() != 0)
+        nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
+}
+
+template<typename FloatT, int Dim, typename ObjData = Empty, bool measureStats = false>
+PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon, TraversalStats<FloatT, Dim>& stats)
 {
     PointObj<FloatT, Dim, ObjData> ann;
     FloatT minDist = std::numeric_limits<FloatT>::infinity();
-    std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>> nodeQueue;
+    DistNodePriQueue<FloatT, Dim> nodeQueue;
     DistNode<FloatT, Dim> rootNode{0, 0, tree.GetBBox()};
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
@@ -100,6 +138,12 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
         DistNode<FloatT, Dim> distNode = nodeQueue.top();
         const Node* node = tree.GetNode(distNode.nodeIdx);
         nodeQueue.pop();
+
+        if (measureStats)
+        {
+            ++stats.traversalSteps;
+            stats.visitedNodes.push_back(distNode.box);
+        }
 
         if (distNode.dist > minDist / (1 + epsilon)) {
             break;
@@ -115,56 +159,42 @@ PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<Float
                 minDist = localNN.dist;
                 ann = localNN.obj;
             }
+
+            if (measureStats)
+                ++stats.visitedLeafs;
         }
         else
         {
-            const InnerNode* innerNode = (const InnerNode*)node;
-            Box leftBox = distNode.box;
-            Box rightBox = distNode.box;
-            if (node->GetType() == NodeType::SPLIT)
-            {
-                const SplitNode* splitNode = (const SplitNode*)node;
-                int splitDim = splitNode->GetSplitDim();
-                FloatT half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
-                leftBox.max[splitDim] = half;
-                rightBox.min[splitDim] = half;
-            }
-            else if (node->GetType() == NodeType::SHRINK)
-            {
-                const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
-                leftBox = shrinkNode->GetShrinkBox();
-            }
-            FloatT distLeft = leftBox.SquaredDistance(queryPoint);
-            FloatT distRight = rightBox.SquaredDistance(queryPoint);
-            if (innerNode->HasLeftChild())
-                nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset<FloatT, Dim>(node->GetType()), leftBox});
-            if (innerNode->GetRightChildIndex() != 0)
-                nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
+            PushChildsToNodeQueue(tree, queryPoint, distNode, nodeQueue);
         }
     }
     return ann;
 }
+
+template<typename FloatT, int Dim, typename ObjData = Empty>
+PointObj<FloatT, Dim, ObjData> FindAproximateNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, FloatT epsilon)
+{
+    TraversalStats<FloatT, Dim> dummyStats;
+    return FindAproximateNearestNeighbor<FloatT, Dim, ObjData>(tree, queryPoint, epsilon, dummyStats);
+}
+
 template<typename FloatT, int Dim, typename ObjData = Empty>
 PointObj<FloatT, Dim, ObjData> FindNearestNeighbor(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint)
 {
     return FindAproximateNearestNeighbor<FloatT, Dim, ObjData>(tree, queryPoint, 0);
 }
 
-template<typename FloatT, int Dim>
-struct TraversalStats
-{
-    int traversalSteps = 0;
-    int visitedLeafs = 0;
-    std::vector<Box<FloatT, Dim>> visitedNodes;
-};
-
 template<typename FloatT, int Dim, typename ObjData = Empty, bool measureStats = false>
 std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(const BBDTree<FloatT, Dim, ObjData>& tree, const Vec<FloatT, Dim>& queryPoint, int k, FloatT epsilon, FixedPriQueue<DistObj<FloatT, Dim, ObjData>>& aknnQueue, TraversalStats<FloatT, Dim>& stats)
 {
+    if (k == 1) {
+        return { FindAproximateNearestNeighbor<FloatT, Dim, ObjData, measureStats>(tree, queryPoint, epsilon, stats) };
+    }
+
     DistObjCompare<FloatT, Dim, ObjData> distObjCompare;
     aknnQueue.Init(k, distObjCompare);
 
-    std::priority_queue<DistNode<FloatT, Dim>, std::vector<DistNode<FloatT, Dim>>, DistNodeCompare<FloatT, Dim>> nodeQueue;
+    DistNodePriQueue<FloatT, Dim> nodeQueue;
     DistNode<FloatT, Dim> rootNode{0, 0, tree.GetBBox()};
     nodeQueue.push(rootNode);
     while (!nodeQueue.empty())
@@ -197,28 +227,7 @@ std::vector<PointObj<FloatT, Dim, ObjData>> FindKAproximateNearestNeighbors(cons
         }
         else
         {
-            const InnerNode* innerNode = (const InnerNode*)node;
-            Box leftBox = distNode.box;
-            Box rightBox = distNode.box;
-            if (node->GetType() == NodeType::SPLIT)
-            {
-                const SplitNode* splitNode = (const SplitNode*)node;
-                int splitDim = splitNode->GetSplitDim();
-                FloatT half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
-                leftBox.max[splitDim] = half;
-                rightBox.min[splitDim] = half;
-            }
-            else if (node->GetType() == NodeType::SHRINK)
-            {
-                const ShrinkNode<FloatT, Dim>* shrinkNode = (const ShrinkNode<FloatT, Dim>*)node;
-                leftBox = shrinkNode->GetShrinkBox();
-            }
-            FloatT distLeft = leftBox.SquaredDistance(queryPoint);
-            FloatT distRight = rightBox.SquaredDistance(queryPoint);
-            if (innerNode->HasLeftChild())
-                nodeQueue.push({distLeft, distNode.nodeIdx + GetNodeOffset<FloatT, Dim>(node->GetType()), leftBox});
-            if (innerNode->GetRightChildIndex() != 0)
-                nodeQueue.push({distRight, innerNode->GetRightChildIndex(), rightBox});
+            PushChildsToNodeQueue(tree, queryPoint, distNode, nodeQueue);
         }
     }
 

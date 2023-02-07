@@ -214,14 +214,12 @@ public:
     {
         BBDTree tree(leafMaxSize, objs);
         tree.BuildBasicSplitTreeR({tree._bbox, tree._objs.data(), tree._objs.data() + tree._objs.size()});
-        tree.RemoveTrivialNodes();
         return tree;
     }
     static BBDTree BuildMidpointSplitTree(int leafMaxSize, const std::vector<PointObjT>& objs)
     {
         BBDTree tree(leafMaxSize, objs);
         tree.BuildMidpointSplitTreeR({tree._bbox, tree._objs.data(), tree._objs.data() + tree._objs.size()});
-        tree.RemoveTrivialNodes();
         return tree;
     }
 
@@ -388,16 +386,6 @@ private:
                 return shrinkNodeIndex;
             }
         }
-    }
-
-    void RemoveTrivialNodes()
-    {
-        std::vector<Node> reducedNodes;
-        reducedNodes.reserve(_nodes.size());
-    }
-
-    void RemoveTrivialNodesR(const Box<FloatT, Dim>& box, const Node* node, bool isParentTrivial, std::vector<Node>& reducedNodes)
-    {
     }
 
     void GetStatsR(BBDTreeIntermediateStats& stats, index_t nodeIndex, int depth) const {
