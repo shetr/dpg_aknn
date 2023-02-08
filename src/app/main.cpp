@@ -81,51 +81,128 @@ std::vector<PointObj<float, Dim>> LoadPoints(const std::string& filename)
    return res;
 }
 
-class MeasureOptions : public argumentum::CommandOptions
+void WritePoint(FILE* file, VecF3 point, VecF3 color)
 {
-   std::shared_ptr<GlobalOptions> _globalOptions;
+   fprintf(file, "point_colored %f %f %f %f %f %f\n", point[0], point[1], point[2], color[0], color[1], color[2]);
+}
+
+void WriteSplit(FILE* file, BoxF3 box, float value, int dim, VecF3 color)
+{
+   VecF3 v0 = box.min;
+   VecF3 v1 = box.min;
+   VecF3 v2 = box.max;
+   VecF3 v3 = box.max;
+   v0[dim] = value;
+   v1[dim] = value;
+   v2[dim] = value;
+   v3[dim] = value;
+   int otherDim = (dim + 1) % 3;
+   v1[otherDim] = box.max[otherDim];
+   v3[otherDim] = box.min[otherDim];
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v1[0], v1[1], v1[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v2[0], v2[1], v2[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v3[0], v3[1], v3[2], color[0], color[1], color[2], v0[0], v0[1], v0[2], color[0], color[1], color[2]);
+   
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
+}
+
+void WriteBox(FILE* file, BoxF3 box, VecF3 color)
+{
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
+   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
+}
+
+class QueryVizOptions : public argumentum::CommandOptions
+{
+private:
+   std::string inputFile;
+   std::string outputFile;
+   int k = 1;
+   float epsilon = 0;
+   int leafSize = 10;
+   std::vector<float> queryInput;
 public:
-   MeasureOptions( std::string_view name, std::shared_ptr<GlobalOptions> globalOptions)
-      : CommandOptions(name), _globalOptions(globalOptions)
-   {}
+   QueryVizOptions( std::string_view name) : CommandOptions(name) {}
 
    void execute(const argumentum::ParseResult& res)
    {
       using namespace std::chrono;
-      if (_globalOptions && _globalOptions->inputFile.size() > 0 )
+      if (inputFile.size() > 0 && outputFile.size() > 0)
       {
-         std::vector<PointObj<float, 3>> points = LoadPoints<3>(_globalOptions->inputFile);
+         std::vector<PointObj<float, 3>> points = LoadPoints<3>(inputFile);
          BBDTree<float, 3> tree;
+         Vec<float, 3> queryPoint = {queryInput[0], queryInput[1], queryInput[2]};
          // build
          {
             high_resolution_clock::time_point start = high_resolution_clock::now();
-            //tree = BBDTree<float, 3>::BuildBasicSplitTree(_globalOptions->leafSize, points);
-            tree = BBDTree<float, 3>::BuildMidpointSplitTree(_globalOptions->leafSize, points);
+            //tree = BBDTree<float, 3>::BuildBasicSplitTree(leafSize, points);
+            tree = BBDTree<float, 3>::BuildMidpointSplitTree(leafSize, points);
             double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
             std::cout << "      build time: " << totalDuration << " s" << std::endl;
          }
-         Vec<float, 3> queryPoint = {0, 0, 0};
          // query
          {
             HeapPriQueue<DistObj<float, 3>> priQueue;
             high_resolution_clock::time_point start = high_resolution_clock::now();
-            std::vector<PointObjF3> knn = FindKAproximateNearestNeighbors<float, 3>(tree, queryPoint, _globalOptions->k, _globalOptions->epsilon, priQueue);
+            std::vector<PointObjF3> knn = FindKAproximateNearestNeighbors<float, 3>(tree, queryPoint, k, epsilon, priQueue);
             double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
             std::cout << "aprox query time: " << totalDuration << " s" << std::endl;
          }
          // naive query
          {
             high_resolution_clock::time_point start = high_resolution_clock::now();
-            std::vector<PointObjF3> knn = LinearFindKNearestNeighbors(points, queryPoint, _globalOptions->k);
+            std::vector<PointObjF3> knn = LinearFindKNearestNeighbors(points, queryPoint, k);
             double totalDuration = duration_cast<duration<double>>(high_resolution_clock::now() - start).count();
             std::cout << "naive query time: " << totalDuration << " s" << std::endl;
          }
+         // visualization
+         FILE* file = fopen(outputFile.c_str(), "w");
+         if (!file) {
+            std::cout << "failed to write to a file " << outputFile << std::endl;
+            return;
+         }
+         fprintf(file, "glpointsize %d\n", 2);
+         for (const PointObj<float, 3>& point : points) {
+            WritePoint(file, point.point, {1, 1, 0});
+         }
+         //WriteBox(file, tree.GetBBox(), {1, 1, 1});
+         fprintf(file, "glpointsize %d\n", 8);
+         WritePoint(file, queryPoint, {1, 0, 0});
+         HeapPriQueue<DistObj<float, 3>> priQueue;
+         TraversalStats<float, 3> stats;
+         std::vector<PointObjF3> knn = FindKAproximateNearestNeighbors<float, 3, Empty, true>(tree, queryPoint, k, epsilon, priQueue, stats);
+         for (int i = 0; i < (int)stats.visitedNodes.size(); ++i) {
+            WriteBox(file, stats.visitedNodes[i], {0, 1, 0});
+         }
+         for (const PointObjF3& p : knn) {
+            WritePoint(file, p.point, {0, 0, 1});
+         }
+         fclose(file);
       }
    }
 protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
-     // ... same as above
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
+      params.add_parameter(k, "--k").nargs(1);
+      params.add_parameter(epsilon, "--eps").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(queryInput, "--query").nargs(3);
    }
 };
 
@@ -182,25 +259,23 @@ private:
 
       std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
 
-      std::cout << buildTime;
+      // TB build time
+      std::cout << buildTime << " ";
+      // M memory consumtion [MB]
       std::cout << GetMemoryString(stats.memoryConsumption);
-      std::cout << stats.innerNodeCount;
-      std::cout << stats.leafNodeCount;
-
-      std::cout << "innerNodeCount:    " << stats.innerNodeCount << std::endl;
-      std::cout << "leafNodeCount:     " << stats.leafNodeCount << std::endl;
-      std::cout << "splitNodeCount:    " << stats.splitNodeCount << std::endl;
-      std::cout << "shrinkNodeCount:   " << stats.shrinkNodeCount << std::endl;
-      std::cout << "nullCount:         " << stats.nullCount << std::endl;
-      std::cout << "maxDepth:          " << stats.maxDepth << std::endl;
-      std::cout << "avgDepth:          " << stats.avgDepth << std::endl;
-      std::cout << "avgLeafSize:       " << stats.avgLeafSize << std::endl;
-      std::cout << "memoryConsumption: " << stats.memoryConsumption << " B " << "(expected: ";
-      std::cout << splitNodeSize << "*" << stats.splitNodeCount << " + ";
-      std::cout << shrinkNodeSize << "*" << stats.shrinkNodeCount << " + ";
-      std::cout << leafNodeSize << "*" << stats.leafNodeCount << " = ";
-      std::cout << expectedSize << " B)" << std::endl;
-      std::cout << "pointsConsumption: " << (sizeof(PointObj<float, Dim>) * points.size()) << " B " << std::endl;
+      // NI inner node count
+      std::cout << stats.innerNodeCount << " ";
+      // NL leaf node count
+      std::cout << stats.leafNodeCount << " ";
+      // NS shrink node percentage
+      double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
+      std::cout << shrinkPercentage << " ";
+      // NAP average leaf size
+      std::cout << stats.avgLeafSize << " ";
+      // DMAX max depth
+      std::cout << stats.maxDepth << " ";
+      // DAVG average depth
+      std::cout << stats.avgDepth << " ";
    }
 
 protected:
@@ -212,51 +287,6 @@ protected:
       params.add_parameter(outputFile, "--out").nargs(1);
    }
 };
-
-void WritePoint(FILE* file, VecF3 point, VecF3 color)
-{
-   fprintf(file, "point_colored %f %f %f %f %f %f\n", point[0], point[1], point[2], color[0], color[1], color[2]);
-}
-
-void WriteSplit(FILE* file, BoxF3 box, float value, int dim, VecF3 color)
-{
-   VecF3 v0 = box.min;
-   VecF3 v1 = box.min;
-   VecF3 v2 = box.max;
-   VecF3 v3 = box.max;
-   v0[dim] = value;
-   v1[dim] = value;
-   v2[dim] = value;
-   v3[dim] = value;
-   int otherDim = (dim + 1) % 3;
-   v1[otherDim] = box.max[otherDim];
-   v3[otherDim] = box.min[otherDim];
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v1[0], v1[1], v1[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v2[0], v2[1], v2[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v3[0], v3[1], v3[2], color[0], color[1], color[2], v0[0], v0[1], v0[2], color[0], color[1], color[2]);
-   
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v0[0], v0[1], v0[2], color[0], color[1], color[2], v2[0], v2[1], v2[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", v1[0], v1[1], v1[2], color[0], color[1], color[2], v3[0], v3[1], v3[2], color[0], color[1], color[2]);
-}
-
-void WriteBox(FILE* file, BoxF3 box, VecF3 color)
-{
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.min[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-   
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.max[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.min[2], color[0], color[1], color[2], box.max[0], box.min[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.min[1], box.max[2], color[0], color[1], color[2], box.max[0], box.min[1], box.max[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.min[2], color[0], color[1], color[2], box.max[0], box.max[1], box.min[2], color[0], color[1], color[2]);
-   fprintf(file, "line_colored  %f %f %f %f %f %f %f %f %f %f %f %f\n", box.min[0], box.max[1], box.max[2], color[0], color[1], color[2], box.max[0], box.max[1], box.max[2], color[0], color[1], color[2]);
-}
 
 class TreeVizOptions : public argumentum::CommandOptions
 {
@@ -529,9 +559,9 @@ int main(int argc, char** argv)
    parser.config().program( argv[0] ).description( "Aproximate k nearest neighbor search" );
 
    /*std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
-   std::shared_ptr<MeasureOptions> measureOptions = std::make_shared<MeasureOptions>( "measure", globalOptions );
    std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );*/
    std::shared_ptr<TreeVizOptions> treeVizOptions = std::make_shared<TreeVizOptions>("tree_viz");
+   std::shared_ptr<QueryVizOptions> queryVizOptions = std::make_shared<QueryVizOptions>("query_viz");
    std::shared_ptr<EpsGraphOptions> epsGraphOptions = std::make_shared<EpsGraphOptions>("eps_graph");
    std::shared_ptr<QueueGraphOptions> queueGraphOptions = std::make_shared<QueueGraphOptions>("queue_graph");
 
@@ -539,6 +569,7 @@ int main(int argc, char** argv)
    params.add_command(measureOptions).help("Measure times.");
    params.add_command(statsOptions).help("Measure stats.");*/
    params.add_command(treeVizOptions).help("Visualize tree hierarchy.");
+   params.add_command(queryVizOptions).help("Visualize specified query.");
    params.add_command(epsGraphOptions).help("Dependence of execution time on epsilon.");
    params.add_command(queueGraphOptions).help("Dependence of execution time on queue type and k.");
 
