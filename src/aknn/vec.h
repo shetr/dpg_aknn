@@ -8,21 +8,26 @@
 #include <limits>
 #include <iostream>
 
+//! Vector of values of specified type T with element count equal to Dim
 template<typename T, int Dim>
 struct Vec
 {
-    // values of the vector
+    //! values of the vector
     std::array<T, Dim> v;
 
+    //! Zero vector
     Vec() : Vec(0) {}
-    
+    //! Fill with value
     Vec(T value) { for (int i = 0; i < Dim; ++i) { v[i] = value; } }
-
+    //! Initialize with specified values
     Vec(std::initializer_list<T> il) { int i = 0; for (T val : il) { v[i] = val; ++i; } }
 
+    //! Array access operator, read only
     const T& operator[](int i) const { return v[i]; }
+    //! Array access operator
     T& operator[](int i) { return v[i]; }
 
+    //! Subtraction of 2 vectors
     Vec<T, Dim> operator-(const Vec<T, Dim>& other) const {
         Vec<T, Dim> res;
         for (int i = 0; i < Dim; ++i) {
@@ -31,6 +36,7 @@ struct Vec
         return res;
     }
 
+    //! Returns true if values inside vectors are equal
     bool operator==(const Vec<T, Dim>& other) const {
         for (int i = 0; i < Dim; ++i)
             if (v[i] != other[i])
@@ -38,6 +44,7 @@ struct Vec
         return true;
     }
 
+    //! Squared euclidean norm of the vector
     T LengthSquared() const {
         T res = 0;
         for (int i = 0; i < Dim; ++i) {
@@ -46,52 +53,69 @@ struct Vec
         return res;
     }
 
+    //! Squared euclidean distance between two vectors
     T DistSquared(const Vec<T, Dim>& other) const {
         return (other - *this).LengthSquared();
     }
 };
 
-template<typename FloatT>
-FloatT Square(FloatT v) {
+//! Just squares the value
+template<typename T>
+T Square(T v) {
     return v * v;
 }
 
+//! Empty struct, used for omiting optional data
 struct Empty {};
 
-// Object represented by a point
+//! Object represented by a point. Has optional field data, by default with type Empty, in which case it should be ignored.
 template<typename FloatT, int Dim, typename ObjData = Empty>
 struct PointObj
 {
+    //! Point representing the object
     Vec<FloatT, Dim> point;
+    //! Optional custom data (color, normal, etc.)
     ObjData data;
 };
 
+//! Axis aligned bounding box
 template<typename FloatT, int Dim>
 struct Box;
 
+//! Represents split of some bounding box at some dimension to 2 smaller boxes
 template<typename FloatT, int Dim>
 struct BoxSplit
 {
+    //! split dimension
     int dim;
+    //! position of the split at the split dimension
     FloatT value;
+    //! left split result
     Box<FloatT, Dim> left;
+    //! right split result
     Box<FloatT, Dim> right;
 };
 
-// Axis aligned bounding box
+//! Axis aligned bounding box
 template<typename FloatT, int Dim>
 struct Box
 {
+    //! Min corner of the box
     Vec<FloatT, Dim> min;
+    //! Max corner of the box
     Vec<FloatT, Dim> max;
 
+    //! Initializes to invalid box, representing empty volume
     Box() : min(std::numeric_limits<FloatT>::infinity()), max(-std::numeric_limits<FloatT>::infinity()) {}
+    //! Initializes to specified values
     Box(Vec<FloatT, Dim> min, Vec<FloatT, Dim> max) : min(min), max(max) {}
 
+    //! Check if boxes are equal
     bool operator==(const Box<FloatT, Dim>& other) const {
         return min == other.min && max == other.max;
     }
 
+    //! Create tight bounding box from array of points
     template<typename ObjData = Empty>
     static Box GetBoundingBox(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs) {
         Box bbox;
@@ -99,8 +123,10 @@ struct Box
         return bbox;
     }
 
+    //! Size of the box in specified dimension
     FloatT GetSize(int dim) const { return max[dim] - min[dim]; }
 
+    //! Computes squared euclidean distnace of specified point to this box
     FloatT SquaredDistance(const Vec<FloatT, Dim>& point) const
     {
         FloatT dist = 0;
@@ -111,6 +137,7 @@ struct Box
         return dist;
     }
 
+    //! Check if point is inside the box
     bool Includes(const Vec<FloatT, Dim>& point) const
     {
         for (int d = 0; d < Dim; ++d) {
@@ -120,6 +147,7 @@ struct Box
         return true;
     };
 
+    //! Extend the box, so that the specified point is inside
     void Include(const Vec<FloatT, Dim>& point)
     {
         for (int d = 0; d < Dim; ++d) {
@@ -128,6 +156,7 @@ struct Box
         }
     }
 
+    //! Splits the box in 2 halfs at dimension of the greatest size
     BoxSplit<FloatT, Dim> Split() const {
         int splitDim = 0;
         FloatT maxSize = 0;
@@ -147,6 +176,7 @@ struct Box
     }
 };
 
+//! Used for printing vector of values
 template<typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
     os << "[";
@@ -156,7 +186,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
     os << "]";
     return os;
 }
-
+//! Used for printing array of values
 template<typename T, int N>
 inline std::ostream& operator<<(std::ostream& os, const std::array<T, N>& v) {
     os << "[";
@@ -166,7 +196,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::array<T, N>& v) {
     os << "]";
     return os;
 }
-
+//! Used for printing Vec
 template<typename FloatT, int Dim>
 inline std::ostream& operator<<(std::ostream& os, const Vec<FloatT, Dim>& v) {
     os << "(";
@@ -176,13 +206,13 @@ inline std::ostream& operator<<(std::ostream& os, const Vec<FloatT, Dim>& v) {
     os << ")";
     return os;
 }
-
+//! Used for printing Box
 template<typename FloatT, int Dim>
 inline std::ostream& operator<<(std::ostream& os, const Box<FloatT, Dim>& box) {
     os << "{min: " << box.min << ", max: " << box.max << "}";
     return os;
 }
-
+//! Simply converts PointObj to Vec
 template<typename FloatT, int Dim, typename ObjData = Empty>
 std::vector<Vec<FloatT, Dim>> ObjsToVec(const std::vector<PointObj<FloatT, Dim, ObjData>>& objs) {
     std::vector<Vec<FloatT, Dim>> res;
@@ -190,13 +220,15 @@ std::vector<Vec<FloatT, Dim>> ObjsToVec(const std::vector<PointObj<FloatT, Dim, 
     std::transform(objs.begin(), objs.end(), res.begin(), [&](const PointObj<FloatT, Dim, ObjData>& obj) { return obj.point; });
     return std::move(res);
 }
-
+//! Sorts array of points by distance to specified point
 template<typename FloatT, int Dim>
 void SortByDistanceToPoint(std::vector<Vec<FloatT, Dim>>& points, const Vec<FloatT, Dim>& point) {
     std::sort(points.begin(), points.end(), [&point](const Vec<FloatT, Dim>& p1, const Vec<FloatT, Dim>& p2) {
         return point.DistSquared(p1) < point.DistSquared(p2);
     });
 }
+
+// Few redeclaration to simplify some testing code
 
 template<int Dim>
 using VecF = Vec<float, Dim>;

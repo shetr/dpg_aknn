@@ -5,19 +5,31 @@
 #include <functional>
 #include <algorithm>
 
+//! Shared interface for priority queues of fixed size. Used for k-NN implementation.
+//! The implementations should behave like normal priority queue,
+//! with the difference that it should remove elements with lowest priority if the capacity exceeds specified maximum.
 template<typename T>
 class FixedPriQueue
 {
 public:
+    //! Functor used to mantain the queue priority. Should return true if left parameter is smaller than the right parameter.
     using IsLeftSmaller = std::function<bool(const T&, const T&)>;
 
+    //! Clears previous state of the queue and initializes empty queue of size k
     virtual void Init(int k, IsLeftSmaller isLeftSmaller) = 0;
+    //! Gets element with the highest priority.
     virtual const T& GetFirst() const = 0;
+    //! Gets element with the lowest priority
     virtual const T& GetLast() const = 0;
+    //! True if the queue is empty
     virtual bool IsEmpty() const = 0;
+    //! True if the queue has reached the maximum size
     virtual bool IsFull() const = 0;
+    //! Number of elements currently stored in the queue
     virtual int GetSize() const = 0;
+    //! Return unsorted array of the values currently stored in the queue
     virtual std::vector<T> GetValues() const = 0;
+    //! Push specified element into the queue. If queue is full, it removes element with the lowest priority.
     virtual void Push(const T& value) = 0;
 };
 
@@ -31,18 +43,26 @@ private:
     T* _first = nullptr;
     T* _last = nullptr;
 public:
+    //! Clears previous state of the queue and initializes empty queue of size k
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _values.clear();
         _values.reserve(k);
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
+    //! Gets element with the highest priority
     const T& GetFirst() const override { return *_first; }
+    //! Gets element with the lowest priority
     const T& GetLast() const override { return *_last; }
+    //! True if the queue is empty
     bool IsEmpty() const override { return _values.empty(); }
+    //! True if the queue has reached the maximum size
     bool IsFull() const override { return _values.size() == _k; }
+    //! Number of elements currently stored in the queue
     int GetSize() const override { return _values.size(); }
+    //! Return unsorted array of the values currently stored in the queue
     std::vector<T> GetValues() const override { return _values; }
+    //! Push specified element into the queue. If queue is full, it removes element with the lowest priority.
     void Push(const T& value) override {
         if (IsEmpty()) {
             _values.push_back(value);
@@ -80,18 +100,26 @@ private:
     IsLeftSmaller _isLeftSmaller;
     T _first;
 public:
+    //! Clears previous state of the queue and initializes empty queue of size k
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _heap.clear();
         _heap.reserve(k);
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
+    //! Gets element with the highest priority
     const T& GetFirst() const override { return _first; }
+    //! Gets element with the lowest priority
     const T& GetLast() const override { return _heap.front(); }
+    //! True if the queue is empty
     bool IsEmpty() const override { return _heap.empty(); }
+    //! True if the queue has reached the maximum size
     bool IsFull() const override { return _heap.size() == _k; }
+    //! Number of elements currently stored in the queue
     int GetSize() const override { return _heap.size(); }
+    //! Return unsorted array of the values currently stored in the queue
     std::vector<T> GetValues() const override { return _heap; }
+    //! Push specified element into the queue. If queue is full, it removes element with the lowest priority.
     void Push(const T& value) override {
         if (IsEmpty()) {
             _heap.push_back(value);
@@ -145,18 +173,26 @@ private:
     IsLeftSmaller _isLeftSmaller;
     T _first;
 public:
+    //! Clears previous state of the queue and initializes empty queue of size k
     void Init(int k, IsLeftSmaller isLeftSmaller) override {
         _heap.clear();
         _heap.reserve(k);
         _k = k;
         _isLeftSmaller = isLeftSmaller;
     }
+    //! Gets element with the highest priority
     const T& GetFirst() const override { return _first; }
+    //! Gets element with the lowest priority
     const T& GetLast() const override { return _heap.front(); }
+    //! True if the queue is empty
     bool IsEmpty() const override { return _heap.empty(); }
+    //! True if the queue has reached the maximum size
     bool IsFull() const override { return _heap.size() == _k; }
+    //! Number of elements currently stored in the queue
     int GetSize() const override { return _heap.size(); }
+    //! Return unsorted array of the values currently stored in the queue
     std::vector<T> GetValues() const override { return _heap; }
+    //! Push specified element into the queue. If queue is full, it removes element with the lowest priority.
     void Push(const T& value) override {
         if (IsEmpty() || _isLeftSmaller(value, _first)) {
             _first = value;
