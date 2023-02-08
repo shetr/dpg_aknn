@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <memory>
 #include <chrono>
+#include <sstream>
 
 #include <aknn/vec.h>
 #include <aknn/bbd_tree.h>
@@ -162,22 +163,17 @@ protected:
 class QueryStatsOptions : public argumentum::CommandOptions
 {
 private:
-   std::string inputFile;
    std::string outputFile;
    int dim = 3;
    int leafSize = 10;
+   int queueSelected = 0;
 public:
    QueryStatsOptions(std::string_view name) : CommandOptions(name)
    {}
 
-   double GetMemoryString(int memory)
-   {
-      return memory / (1024.0 * 1024.0);
-   }
-
    void execute(const argumentum::ParseResult& res)
    {
-      if (inputFile.size() > 0 && outputFile.size() > 0)
+      if (outputFile.size() > 0)
       {
          if (dim == 2) {
             Execute<2>();
@@ -194,49 +190,90 @@ private:
    void Execute()
    {
       using namespace std::chrono;
-      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
-      BBDTree<float, Dim> tree;
-      double buildTime;
-      {
-         high_resolution_clock::time_point start = high_resolution_clock::now();
-         tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
-         buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+
+      std::vector<int> dataCounts = {3, 5, 7};
+      std::vector<std::string> dataTypes = {"clusters", "normal", "uniform"};
+      std::vector<int> ks = {1, 100};
+      std::vector<float> epss = {0, 1, 10};
+
+      int queryCount = 10;
+      std::vector<Vec<float, Dim>> queryPoints;
+      for (int i = 0; i < queryCount; ++i) {
+         Vec<float, Dim> queryPoint;
+         for (int d = 0; d < Dim; ++d) {
+               queryPoint[d] = ((float)rand()) / RAND_MAX;
+         }
+         queryPoints.push_back(queryPoint);
       }
 
-      BBDTreeStats stats = tree.GetStats();
+      std::vector<std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>> fixedQueues;
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new LinearPriQueue<DistObj<float, Dim>>()));
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new HeapPriQueue<DistObj<float, Dim>>()));
+      fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new StdPriQueue<DistObj<float, Dim>>()));
 
-      int splitNodeSize = sizeof(SplitNode);
-      int shrinkNodeSize = sizeof(ShrinkNode<float, Dim>);
-      int leafNodeSize = sizeof(LeafNode);
-      int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
+      for (int dc = 0; dc < 3; ++dc) {
+      for (int dt = 0; dt < 3; ++dt) {
+         std::stringstream ss;
+         ss << "data\\" << dataTypes[dt] << "_" << Dim << "d_e" << dataCounts[dc] << ".txt";
+         std::string file = ss.str();
 
-      std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
+         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(file);
+         BBDTree<float, Dim> tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+         
+         std::cout << dataTypes[dt] << " ";
+         std::cout << "10^" << dataCounts[dc] << " ";
+         
+         TraversalStats<float, Dim> stats;
+         for (int k : ks) {
+         for (float eps : epss) {
+            double totalTime = 0;
+            double totalSteps = 0;
+            for (int i = 0; i < queryCount; ++i) {
+               high_resolution_clock::time_point start = high_resolution_clock::now();
+               std::vector<PointObj<float, Dim>> knn = FindKAproximateNearestNeighbors<float, Dim>(tree, queryPoints[i], k, eps, *fixedQueues[queueSelected]);
+               double queryDuration = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+               totalTime += queryDuration;
+               stats.traversalSteps = 0;
+               stats.visitedLeafs = 0;
+               stats.visitedNodes.clear();
+               knn = FindKAproximateNearestNeighbors<float, Dim, Empty, true>(tree, queryPoints[i], k, eps, *fixedQueues[queueSelected], stats);
+               totalSteps += stats.traversalSteps;
+            }
+            double avgQueryTime = totalTime / queryCount;
+            double avgTravSteps = totalSteps / queryCount;
+            double naiveTime = 0;
+            {
+               high_resolution_clock::time_point start = high_resolution_clock::now();
+               std::vector<PointObj<float, Dim>> knn = LinearFindKNearestNeighbors(points, queryPoints[0], k);
+               naiveTime = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+            }
 
-      // TB build time
-      std::cout << buildTime << " ";
-      // M memory consumtion [MB]
-      std::cout << GetMemoryString(stats.memoryConsumption);
-      // NI inner node count
-      std::cout << stats.innerNodeCount << " ";
-      // NL leaf node count
-      std::cout << stats.leafNodeCount << " ";
-      // NS shrink node percentage
-      double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
-      std::cout << shrinkPercentage << " ";
-      // NAP average leaf size
-      std::cout << stats.avgLeafSize << " ";
-      // DMAX max depth
-      std::cout << stats.maxDepth << " ";
-      // DAVG average depth
-      std::cout << stats.avgDepth << " ";
+            // TR - traversation time
+            std::cout << avgQueryTime << " ";
+
+            // NTR - number of traversal steps
+            std::cout << avgTravSteps << " ";
+
+            // PERF
+            std::cout << 1 / (avgQueryTime / 1000000) << " ";
+
+            // S - speedup
+            std::cout << naiveTime / avgQueryTime << " ";
+         }
+         }
+
+
+         std::cout << std::endl;
+      }
+      }
    }
 
 protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
-      params.add_parameter(inputFile, "--in").nargs(1);
       params.add_parameter(dim, "--dim").nargs(1);
       params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(queueSelected, "--queue").nargs(1);
       params.add_parameter(outputFile, "--out").nargs(1);
    }
 };
@@ -244,7 +281,6 @@ protected:
 class TreeStatsOptions : public argumentum::CommandOptions
 {
 private:
-   std::string inputFile;
    std::string outputFile;
    int dim = 3;
    int leafSize = 10;
@@ -259,7 +295,7 @@ public:
 
    void execute(const argumentum::ParseResult& res)
    {
-      if (inputFile.size() > 0 && outputFile.size() > 0)
+      if (outputFile.size() > 0)
       {
          if (dim == 2) {
             Execute<2>();
@@ -276,47 +312,58 @@ private:
    void Execute()
    {
       using namespace std::chrono;
-      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
-      BBDTree<float, Dim> tree;
-      double buildTime;
-      {
-         high_resolution_clock::time_point start = high_resolution_clock::now();
-         tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
-         buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+      
+      //std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
+
+      std::vector<int> dataCounts = {3, 5, 7};
+      std::vector<std::string> dataTypes = {"clusters", "normal", "uniform"};
+
+      for (int dc = 0; dc < 3; ++dc) {
+      for (int dt = 0; dt < 3; ++dt) {
+         std::stringstream ss;
+         ss << "data\\" << dataTypes[dt] << "_" << Dim << "d_e" << dataCounts[dc] << ".txt";
+         std::string file = ss.str();
+
+         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(file);
+         BBDTree<float, Dim> tree;
+         double buildTime;
+         {
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+            buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+         }
+
+         BBDTreeStats stats = tree.GetStats();
+         
+         std::cout << dataTypes[dt] << " ";
+         std::cout << "10^" << dataCounts[dc] << " ";
+
+         // TB build time
+         std::cout << buildTime << " ";
+         // M memory consumtion [MB]
+         std::cout << GetMemoryString(stats.memoryConsumption);
+         // NI inner node count
+         std::cout << stats.innerNodeCount << " ";
+         // NL leaf node count
+         std::cout << stats.leafNodeCount << " ";
+         // NS shrink node percentage
+         double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
+         std::cout << shrinkPercentage << " ";
+         // NAP average leaf size
+         std::cout << stats.avgLeafSize << " ";
+         // DMAX max depth
+         std::cout << stats.maxDepth << " ";
+         // DAVG average depth
+         std::cout << stats.avgDepth << " ";
+
+         std::cout << std::endl;
       }
-
-      BBDTreeStats stats = tree.GetStats();
-
-      int splitNodeSize = sizeof(SplitNode);
-      int shrinkNodeSize = sizeof(ShrinkNode<float, Dim>);
-      int leafNodeSize = sizeof(LeafNode);
-      int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
-
-      std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
-
-      // TB build time
-      std::cout << buildTime << " ";
-      // M memory consumtion [MB]
-      std::cout << GetMemoryString(stats.memoryConsumption);
-      // NI inner node count
-      std::cout << stats.innerNodeCount << " ";
-      // NL leaf node count
-      std::cout << stats.leafNodeCount << " ";
-      // NS shrink node percentage
-      double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
-      std::cout << shrinkPercentage << " ";
-      // NAP average leaf size
-      std::cout << stats.avgLeafSize << " ";
-      // DMAX max depth
-      std::cout << stats.maxDepth << " ";
-      // DAVG average depth
-      std::cout << stats.avgDepth << " ";
+      }
    }
 
 protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
-      params.add_parameter(inputFile, "--in").nargs(1);
       params.add_parameter(dim, "--dim").nargs(1);
       params.add_parameter(leafSize, "--leaf").nargs(1);
       params.add_parameter(outputFile, "--out").nargs(1);

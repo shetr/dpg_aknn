@@ -1,0 +1,1 @@
+exe\app.exe query_stats --out out\tree_stats.txt --dim 3 --leaf 10
