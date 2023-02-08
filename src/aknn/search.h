@@ -13,7 +13,7 @@ template<typename FloatT, int Dim>
 struct DistNode
 {
     FloatT dist;
-    uint64_t nodeIdx;
+    index_t nodeIdx;
     Box<FloatT, Dim> box;
 };
 
