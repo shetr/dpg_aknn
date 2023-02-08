@@ -348,6 +348,7 @@ public:
    int dim = 3;
    int k = 1;
    int leafSize = 10;
+   int queryCount = 1000;
 public:
    EpsGraphOptions(std::string_view name) : CommandOptions(name) {}
 
@@ -368,10 +369,11 @@ protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
       params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
       params.add_parameter(dim, "--dim").nargs(1);
       params.add_parameter(k, "--k").nargs(1);
       params.add_parameter(leafSize, "--leaf").nargs(1);
-      params.add_parameter(outputFile, "--out").nargs(1);
+      params.add_parameter(queryCount, "--queries").nargs(1);
    }
 
    template<int Dim>
@@ -390,7 +392,6 @@ protected:
          return;
       }
       
-      int queryCount = 1000;
       std::vector<Vec<float, Dim>> queryPoints;
       for (int i = 0; i < queryCount; ++i) {
          Vec<float, Dim> queryPoint;
@@ -400,7 +401,14 @@ protected:
          queryPoints.push_back(queryPoint);
       }
 
-      for (int i_eps = 0; i_eps < 100; ++i_eps)
+      for (int i_eps = 0; i_eps <= 100; ++i_eps)
+      {
+         float epsilon = i_eps * 0.1f;
+         fprintf(file, "%f ", epsilon);
+      }
+      fprintf(file, "\n");
+
+      for (int i_eps = 0; i_eps <= 100; ++i_eps)
       {
          float epsilon = i_eps * 0.1f;
 
@@ -415,6 +423,7 @@ protected:
          double avgQueryTime = totalTime / queryCount;
          fprintf(file, "%f ", avgQueryTime);
       }
+      fprintf(file, "\n");
 
       fclose(file);
    }
@@ -485,20 +494,23 @@ protected:
       fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new HeapPriQueue<DistObj<float, Dim>>()));
       fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new StdPriQueue<DistObj<float, Dim>>()));
 
-      for (int q = 0; q < 3; ++q)
+      for (int q = -1; q < 3; ++q)
       {
-         FixedPriQueue<DistObj<float, Dim>>& priQueue = *fixedQueues[q];
-         for (int k = 1; k <= 1024; k += std::max(1, k / 4))
+         for (int k = 1; k <= 1200; k += std::max(1, k / 4))
          {
-            double totalTime = 0;
-            for (int i = 0; i < queryCount; ++i) {
-               high_resolution_clock::time_point start = high_resolution_clock::now();
-               std::vector<PointObj<float, Dim>> knn = FindKAproximateNearestNeighbors<float, Dim>(tree, queryPoints[i], k, epsilon, priQueue);
-               double queryDuration = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
-               totalTime += queryDuration;
+            if (q == -1) {
+               fprintf(file, "%f ", (double)k);
+            } else {
+               double totalTime = 0;
+               for (int i = 0; i < queryCount; ++i) {
+                  high_resolution_clock::time_point start = high_resolution_clock::now();
+                  std::vector<PointObj<float, Dim>> knn = FindKAproximateNearestNeighbors<float, Dim>(tree, queryPoints[i], k, epsilon, *fixedQueues[q]);
+                  double queryDuration = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+                  totalTime += queryDuration;
+               }
+               double avgQueryTime = totalTime / queryCount;
+               fprintf(file, "%f ", avgQueryTime);
             }
-            double avgQueryTime = totalTime / queryCount;
-            fprintf(file, "%f ", avgQueryTime);
          }
          fprintf(file, "\n");
       }
