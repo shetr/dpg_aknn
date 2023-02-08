@@ -11,26 +11,6 @@
 
 #include <argumentum/argparse-h.h>
 
-class GlobalOptions : public argumentum::Options
-{
-public:
-   std::string inputFile;
-   std::string outputFile;
-   int dim = 3;
-   int k = 1;
-   float epsilon = 0;
-   int leafSize = 10;
-   void add_parameters(argumentum::ParameterConfig& params) override
-   {
-      params.add_parameter(inputFile, "--in").nargs(1);
-      params.add_parameter(dim, "--dim").nargs(1);
-      params.add_parameter(k, "--k").nargs(1);
-      params.add_parameter(epsilon, "--eps").nargs(1);
-      params.add_parameter(leafSize, "--leaf").nargs(1);
-      params.add_parameter(outputFile, "--out").nargs(1);
-   }
-};
-
 template<int Dim>
 std::vector<PointObj<float, Dim>> LoadPoints(const std::string& filename)
 {
@@ -179,6 +159,88 @@ protected:
    }
 };
 
+class QueryStatsOptions : public argumentum::CommandOptions
+{
+private:
+   std::string inputFile;
+   std::string outputFile;
+   int dim = 3;
+   int leafSize = 10;
+public:
+   QueryStatsOptions(std::string_view name) : CommandOptions(name)
+   {}
+
+   double GetMemoryString(int memory)
+   {
+      return memory / (1024.0 * 1024.0);
+   }
+
+   void execute(const argumentum::ParseResult& res)
+   {
+      if (inputFile.size() > 0 && outputFile.size() > 0)
+      {
+         if (dim == 2) {
+            Execute<2>();
+         } else if (dim == 3) {
+            Execute<3>();
+         } else if (dim == 4) {
+            Execute<4>();
+         }
+      }
+   }
+private:
+
+   template<int Dim>
+   void Execute()
+   {
+      using namespace std::chrono;
+      std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(inputFile);
+      BBDTree<float, Dim> tree;
+      double buildTime;
+      {
+         high_resolution_clock::time_point start = high_resolution_clock::now();
+         tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
+         buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+      }
+
+      BBDTreeStats stats = tree.GetStats();
+
+      int splitNodeSize = sizeof(SplitNode);
+      int shrinkNodeSize = sizeof(ShrinkNode<float, Dim>);
+      int leafNodeSize = sizeof(LeafNode);
+      int expectedSize = splitNodeSize*stats.splitNodeCount + shrinkNodeSize*stats.shrinkNodeCount + leafNodeSize*stats.leafNodeCount;
+
+      std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
+
+      // TB build time
+      std::cout << buildTime << " ";
+      // M memory consumtion [MB]
+      std::cout << GetMemoryString(stats.memoryConsumption);
+      // NI inner node count
+      std::cout << stats.innerNodeCount << " ";
+      // NL leaf node count
+      std::cout << stats.leafNodeCount << " ";
+      // NS shrink node percentage
+      double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
+      std::cout << shrinkPercentage << " ";
+      // NAP average leaf size
+      std::cout << stats.avgLeafSize << " ";
+      // DMAX max depth
+      std::cout << stats.maxDepth << " ";
+      // DAVG average depth
+      std::cout << stats.avgDepth << " ";
+   }
+
+protected:
+   void add_parameters(argumentum::ParameterConfig& params ) override
+   {
+      params.add_parameter(inputFile, "--in").nargs(1);
+      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(outputFile, "--out").nargs(1);
+   }
+};
+
 class TreeStatsOptions : public argumentum::CommandOptions
 {
 private:
@@ -306,7 +368,7 @@ public:
             nodeQueue.pop();
 
             float t = distNode.dist / stats.maxDepth;
-            float shade = 0.6f * (1.0f - t) + t;
+            float shade = 0.5f * (1.0f - t) + t;
 
             if (node->GetType() != NodeType::LEAF)
             {
@@ -320,13 +382,13 @@ public:
                   float half = (distNode.box.min[splitDim] + distNode.box.max[splitDim]) / 2;
                   leftBox.max[splitDim] = half;
                   rightBox.min[splitDim] = half;
-                  WriteSplit(file, distNode.box, half, splitDim, {1, 0, 1});
+                  WriteSplit(file, distNode.box, half, splitDim, {t, 0, t});
                }
                else if (node->GetType() == NodeType::SHRINK)
                {
                   const ShrinkNode<float, 3>* shrinkNode = (const ShrinkNode<float, 3>*)node;
                   leftBox = shrinkNode->GetShrinkBox();
-                  WriteBox(file, leftBox, {0, 1, 0});
+                  WriteBox(file, leftBox, {0, t, 0});
                }
                float depth = distNode.dist + 1;
                if (innerNode->HasLeftChild())
@@ -535,16 +597,15 @@ int main(int argc, char** argv)
    ParameterConfig params = parser.params();
    parser.config().program( argv[0] ).description( "Aproximate k nearest neighbor search" );
 
-   /*std::shared_ptr<GlobalOptions> globalOptions = std::make_shared<GlobalOptions>();
-   std::shared_ptr<StatsOptions> statsOptions = std::make_shared<StatsOptions>( "stats", globalOptions );*/
+   std::shared_ptr<TreeStatsOptions> treeStatsOptions = std::make_shared<TreeStatsOptions>("tree_stats");
+   std::shared_ptr<QueryStatsOptions> queryStatsOptions = std::make_shared<QueryStatsOptions>("query_stats");
    std::shared_ptr<TreeVizOptions> treeVizOptions = std::make_shared<TreeVizOptions>("tree_viz");
    std::shared_ptr<QueryVizOptions> queryVizOptions = std::make_shared<QueryVizOptions>("query_viz");
    std::shared_ptr<EpsGraphOptions> epsGraphOptions = std::make_shared<EpsGraphOptions>("eps_graph");
    std::shared_ptr<QueueGraphOptions> queueGraphOptions = std::make_shared<QueueGraphOptions>("queue_graph");
 
-   /*params.add_parameters( globalOptions );
-   params.add_command(measureOptions).help("Measure times.");
-   params.add_command(statsOptions).help("Measure stats.");*/
+   params.add_command(treeStatsOptions).help("Tree statistics.");
+   params.add_command(queryStatsOptions).help("Query statistics.");
    params.add_command(treeVizOptions).help("Visualize tree hierarchy.");
    params.add_command(queryVizOptions).help("Visualize specified query.");
    params.add_command(epsGraphOptions).help("Dependence of execution time on epsilon.");
