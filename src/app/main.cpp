@@ -134,6 +134,7 @@ private:
    int k = 1;
    float epsilon = 0;
    int leafSize = 10;
+   int pointSize = 2;
    std::vector<float> queryInput;
 public:
    QueryVizOptions( std::string_view name) : CommandOptions(name) {}
@@ -175,12 +176,12 @@ public:
             std::cout << "failed to write to a file " << outputFile << std::endl;
             return;
          }
-         fprintf(file, "glpointsize %d\n", 2);
+         fprintf(file, "glpointsize %d\n", pointSize);
          for (const PointObj<float, 3>& point : points) {
             WritePoint(file, point.point, {1, 1, 0});
          }
          //WriteBox(file, tree.GetBBox(), {1, 1, 1});
-         fprintf(file, "glpointsize %d\n", 8);
+         fprintf(file, "glpointsize %d\n", 4*pointSize);
          WritePoint(file, queryPoint, {1, 0, 0});
          HeapPriQueue<DistObj<float, 3>> priQueue;
          TraversalStats<float, 3> stats;
@@ -202,6 +203,7 @@ protected:
       params.add_parameter(k, "--k").nargs(1);
       params.add_parameter(epsilon, "--eps").nargs(1);
       params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(pointSize, "--point_size").nargs(1);
       params.add_parameter(queryInput, "--query").nargs(3);
    }
 };
@@ -293,6 +295,7 @@ class TreeVizOptions : public argumentum::CommandOptions
 public:
    std::string inputFile;
    std::string outputFile;
+   int pointSize = 1;
    int leafSize = 10;
 public:
    TreeVizOptions(std::string_view name) : CommandOptions(name) {}
@@ -313,6 +316,8 @@ public:
             std::cout << "failed to write to a file " << outputFile << std::endl;
             return;
          }
+
+         fprintf(file, "glpointsize %d\n", pointSize);
 
          for (const PointObj<float, 3>& point : points) {
             WritePoint(file, point.point, {1, 1, 0});
@@ -365,8 +370,9 @@ protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
       params.add_parameter(inputFile, "--in").nargs(1);
-      params.add_parameter(leafSize, "--leaf").nargs(1);
       params.add_parameter(outputFile, "--out").nargs(1);
+      params.add_parameter(leafSize, "--leaf").nargs(1);
+      params.add_parameter(pointSize, "--point_size").nargs(1);
    }
 };
 
