@@ -12,6 +12,36 @@
 
 #include <argumentum/argparse-h.h>
 
+
+std::string GetMemoryString(int memory)
+{
+   if (memory > 1024.0 * 1024.0) {
+      return std::to_string((int)round(memory / (1024.0 * 1024.0))) + " MB";
+   } else if (memory > 1024.0) {
+      return std::to_string((int)round(memory / 1024.0)) + " kB";
+   }
+   return std::to_string(memory) + " B";
+}
+
+void PrintTimeString(FILE* file, double microseconds)
+{
+   if (microseconds == 0) {
+      fprintf(file, "<1 $\\mu$s");
+      return;
+   }
+   if (microseconds < 1000) {
+      fprintf(file, "%.1f $\\mu$s", microseconds);
+      return;
+   }
+   microseconds /= 1000;
+   if (microseconds < 1000) {
+      fprintf(file, "%.1f ms", microseconds);
+      return;
+   }
+   microseconds /= 1000;
+   fprintf(file, "%.1f s", microseconds);
+}
+
 template<int Dim>
 std::vector<PointObj<float, Dim>> LoadPoints(const std::string& filename)
 {
@@ -165,6 +195,7 @@ class QueryStatsOptions : public argumentum::CommandOptions
 private:
    std::string outputFile;
    int dim = 3;
+   int k = 1;
    int leafSize = 10;
    int queueSelected = 0;
 public:
@@ -175,25 +206,27 @@ public:
    {
       if (outputFile.size() > 0)
       {
-         if (dim == 2) {
-            Execute<2>();
-         } else if (dim == 3) {
-            Execute<3>();
-         } else if (dim == 4) {
-            Execute<4>();
+         FILE* file = fopen(outputFile.c_str(), "w");
+         if (!file) {
+            std::cout << "failed to write to a file " << outputFile << std::endl;
+            return;
          }
+         fprintf(file, "D & N & T_R ($\\mu$s) & N_{TR} & PERF & S & T_R ($\\mu$s) & N_{TR} & PERF & S & T_R ($\\mu$s) & N_{TR} & PERF & S \\\\ \\hline\n");
+         Execute<2>(file);
+         Execute<3>(file);
+         Execute<4>(file);
       }
    }
 private:
 
    template<int Dim>
-   void Execute()
+   void Execute(FILE* file)
    {
       using namespace std::chrono;
 
+      //std::vector<int> dataCounts = {3, 5};
       std::vector<int> dataCounts = {3, 5, 7};
-      std::vector<std::string> dataTypes = {"clusters", "normal", "uniform"};
-      std::vector<int> ks = {1, 100};
+      std::string dataType = "clusters";
       std::vector<float> epss = {0, 1, 10};
 
       int queryCount = 10;
@@ -211,20 +244,27 @@ private:
       fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new HeapPriQueue<DistObj<float, Dim>>()));
       fixedQueues.push_back(std::unique_ptr<FixedPriQueue<DistObj<float, Dim>>>(new StdPriQueue<DistObj<float, Dim>>()));
 
-      for (int dc = 0; dc < 3; ++dc) {
-      for (int dt = 0; dt < 3; ++dt) {
+      for (int dc = 0; dc < (int)dataCounts.size(); ++dc) {
          std::stringstream ss;
-         ss << "data\\" << dataTypes[dt] << "_" << Dim << "d_e" << dataCounts[dc] << ".txt";
-         std::string file = ss.str();
+         ss << "data\\" << dataType << "_" << Dim << "d_e" << dataCounts[dc] << ".txt";
+         std::string infile = ss.str();
 
-         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(file);
+         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(infile);
          BBDTree<float, Dim> tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
-         
-         std::cout << dataTypes[dt] << " ";
-         std::cout << "10^" << dataCounts[dc] << " ";
+
+         fprintf(file, "%d & ", Dim);
+         fprintf(file, "10^%d ", dataCounts[dc]);
+
+         double totalNaiveTime = 0;
+         for (int i = 0; i < queryCount; ++i) {
+            high_resolution_clock::time_point start = high_resolution_clock::now();
+            std::vector<PointObj<float, Dim>> knn = LinearFindKNearestNeighbors(points, queryPoints[i], k);
+            double naiveTime = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
+            totalNaiveTime += naiveTime;
+         }
+         double avgNaiveTime = totalNaiveTime / queryCount;
          
          TraversalStats<float, Dim> stats;
-         for (int k : ks) {
          for (float eps : epss) {
             double totalTime = 0;
             double totalSteps = 0;
@@ -241,37 +281,31 @@ private:
             }
             double avgQueryTime = totalTime / queryCount;
             double avgTravSteps = totalSteps / queryCount;
-            double naiveTime = 0;
-            {
-               high_resolution_clock::time_point start = high_resolution_clock::now();
-               std::vector<PointObj<float, Dim>> knn = LinearFindKNearestNeighbors(points, queryPoints[0], k);
-               naiveTime = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
-            }
-
+            
+            fprintf(file, "& ");
             // TR - traversation time
-            std::cout << avgQueryTime << " ";
+            fprintf(file, "%.1f & ", avgQueryTime);
 
             // NTR - number of traversal steps
-            std::cout << avgTravSteps << " ";
+            fprintf(file, "%.1f & ", avgTravSteps);
 
             // PERF
-            std::cout << 1 / (avgQueryTime / 1000000) << " ";
+            int perf = (int)round(1 / std::max(1.0 / 1000000, (avgQueryTime / 1000000)));
+            fprintf(file, "%d & ", perf);
 
             // S - speedup
-            std::cout << naiveTime / avgQueryTime << " ";
-         }
+            double speedup = avgNaiveTime / avgQueryTime;
+            fprintf(file, "%.1f ", speedup);
          }
 
-
-         std::cout << std::endl;
-      }
+         fprintf(file, " \\\\ \\hline\n");
       }
    }
 
 protected:
    void add_parameters(argumentum::ParameterConfig& params ) override
    {
-      params.add_parameter(dim, "--dim").nargs(1);
+      params.add_parameter(k, "--k").nargs(1);
       params.add_parameter(leafSize, "--leaf").nargs(1);
       params.add_parameter(queueSelected, "--queue").nargs(1);
       params.add_parameter(outputFile, "--out").nargs(1);
@@ -288,75 +322,76 @@ public:
    TreeStatsOptions(std::string_view name) : CommandOptions(name)
    {}
 
-   double GetMemoryString(int memory)
-   {
-      return memory / (1024.0 * 1024.0);
-   }
-
    void execute(const argumentum::ParseResult& res)
    {
       if (outputFile.size() > 0)
       {
-         if (dim == 2) {
-            Execute<2>();
-         } else if (dim == 3) {
-            Execute<3>();
-         } else if (dim == 4) {
-            Execute<4>();
+         FILE* file = fopen(outputFile.c_str(), "w");
+         if (!file) {
+            std::cout << "failed to write to a file " << outputFile << std::endl;
+            return;
          }
+         fprintf(file, "Distrib. & D & N & T_B & M & N_I & N_L & N_S (\\%%) & N_{AP} & D_{MAX} & D_{AVG} \\\\ \\hline\n");
+         Execute<2>(file);
+         Execute<3>(file);
+         Execute<4>(file);
       }
    }
 private:
 
    template<int Dim>
-   void Execute()
+   void Execute(FILE* file)
    {
       using namespace std::chrono;
       
-      //std::cout << "TB M NI NL NS NAP DMAX DAVG" << std::endl;
 
       std::vector<int> dataCounts = {3, 5, 7};
       std::vector<std::string> dataTypes = {"clusters", "normal", "uniform"};
+
+      fprintf(file, "\\hline\n");
 
       for (int dc = 0; dc < 3; ++dc) {
       for (int dt = 0; dt < 3; ++dt) {
          std::stringstream ss;
          ss << "data\\" << dataTypes[dt] << "_" << Dim << "d_e" << dataCounts[dc] << ".txt";
-         std::string file = ss.str();
+         std::string infile = ss.str();
 
-         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(file);
+         std::vector<PointObj<float, Dim>> points = LoadPoints<Dim>(infile);
          BBDTree<float, Dim> tree;
          double buildTime;
          {
             high_resolution_clock::time_point start = high_resolution_clock::now();
             tree = BBDTree<float, Dim>::BuildMidpointSplitTree(leafSize, points);
-            buildTime = duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count();
+            buildTime = duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count();
          }
 
          BBDTreeStats stats = tree.GetStats();
          
-         std::cout << dataTypes[dt] << " ";
-         std::cout << "10^" << dataCounts[dc] << " ";
+         // Distrib
+         fprintf(file, "%s & ", dataTypes[dt].c_str());
+         // D
+         fprintf(file, "%d & ", Dim);
+         // N
+         fprintf(file, "10^%d & ", dataCounts[dc]);
 
          // TB build time
-         std::cout << buildTime << " ";
+         PrintTimeString(file, buildTime);
+         fprintf(file, " & ");
          // M memory consumtion [MB]
-         std::cout << GetMemoryString(stats.memoryConsumption);
+         fprintf(file, "%s & ", GetMemoryString(stats.memoryConsumption).c_str());
          // NI inner node count
-         std::cout << stats.innerNodeCount << " ";
+         fprintf(file, "%d & ", stats.innerNodeCount);
          // NL leaf node count
-         std::cout << stats.leafNodeCount << " ";
+         fprintf(file, "%d & ", stats.leafNodeCount);
          // NS shrink node percentage
          double shrinkPercentage = 100 * (double)stats.shrinkNodeCount / (double)stats.innerNodeCount;
-         std::cout << shrinkPercentage << " ";
+         fprintf(file, "%.1f & ", shrinkPercentage);
          // NAP average leaf size
-         std::cout << stats.avgLeafSize << " ";
+         fprintf(file, "%.1f & ", stats.avgLeafSize);
          // DMAX max depth
-         std::cout << stats.maxDepth << " ";
+         fprintf(file, "%d & ", stats.maxDepth);
          // DAVG average depth
-         std::cout << stats.avgDepth << " ";
-
-         std::cout << std::endl;
+         fprintf(file, "%.1f \\\\ \\hline\n", stats.avgDepth);
       }
       }
    }

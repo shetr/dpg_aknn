@@ -1,1 +1,1 @@
-exe\app.exe query_stats --out out\tree_stats.txt --dim 3 --leaf 10
+exe\app.exe query_stats --out out\query_stats_k100.txt --k 1 --leaf 10 --queue 1
