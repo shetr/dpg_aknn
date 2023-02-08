@@ -9,4 +9,6 @@ if __name__ == "__main__":
     file = sys.argv[1]
     data = np.loadtxt(file)
     plt.plot(data[0], data[1])
+    plt.xlabel('Epsilon')
+    plt.ylabel('Time (microseconds)')
     plt.show()

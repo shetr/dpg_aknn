@@ -8,7 +8,10 @@ if __name__ == "__main__":
         exit(1)
     file = sys.argv[1]
     data = np.loadtxt(file)
-    plt.plot(data[0], data[1])
-    plt.plot(data[0], data[2])
-    plt.plot(data[0], data[3])
+    plt.plot(data[0], data[1], label='linear')
+    plt.plot(data[0], data[2], label='heap')
+    plt.plot(data[0], data[3], label='std')
+    plt.legend(title='Queue type:')
+    plt.xlabel('K nearest neighbors')
+    plt.ylabel('Time (microseconds)')
     plt.show()
